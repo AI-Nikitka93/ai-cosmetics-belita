@@ -2,14 +2,17 @@
 
 - Цель: довести проект `AI Smart Cosmetics BELITA Recommender` до deploy-ready cloud bot core с безопасным RAG и бесплатным `24/7` serving path.
 - Текущий статус: `IN_PROGRESS`
-- Активный шаг: `cloud-bot` опубликован в Cloudflare Workers, `/start` работает, text-query path стабилизирован, а для online parsing и защиты кода добавлены `GitHub Actions`-путь и проприетарная licensing policy.
+- Активный шаг: ночной run `catalog-sync` изучен; `Scrape catalog` завершился успешно, но `Enrich INCI` был отменен по timeout, а knowledge refresh до SQLite/Qdrant не дошел.
 - Блокеры:
   - нет критических блокеров для локального knowledge prototype;
   - до production нужен отдельный legal review по РБ;
   - среди checked free online backends нет варианта с сильной production-grade `24/7` гарантией без рисков pause / inactivity cleanup / quota ceilings.
   - текущий `sqlite.db` содержит только `1` продукт после smoke-ingestion, поэтому рекомендации пока ограничены и требуют полного прогона каталога.
-- Следующий шаг: перенести репозиторий в `private GitHub repo`, завести secrets `QDRANT_URL` и `QDRANT_KEY`, вручную запустить workflow `catalog-sync` и проверить длительность полного прогона в рамках free quota GitHub Actions.
-- Следующий шаг: после первого online sync перепроверить реальные продуктовые рекомендации в Telegram и решить, нужен ли incremental sync вместо full refresh.
+  - исходный код теперь публично видим на GitHub, поэтому фактическая защита кода ослаблена до юридической рамки `LICENSE`.
+  - текущий workflow `catalog-sync` слишком длинный для одного GitHub job: `raw_catalog.json` собирается полностью, но `Enrich INCI` не успевает закончиться в пределах `180` минут.
+  - parser сейчас захватывает нерелевантные для бота разделы каталога (`sumki`, `gift-wrap`, `sredstva-dlya-stirki` и т.д.), что увеличивает время и шум в данных.
+- Следующий шаг: переработать workflow на staged sync с resume-state и отфильтровать non-cosmetic категории до следующего online run.
+- Следующий шаг: после staged sync и повторного cloud reindex заново проверить реальные рекомендации бота в Telegram.
 - Артефакты:
   - `docs/PRD_BELITA_BOT.md`
   - `ARCHITECTURE.md`
@@ -43,3 +46,4 @@
   - `sqlite.db`
   - `qdrant_db`
 - Обновлено: `2026-03-29 02:50`
+- Обновлено: `2026-03-29 09:20`

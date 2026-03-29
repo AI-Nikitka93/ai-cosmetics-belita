@@ -2,13 +2,16 @@
   "current_goal": "Довести Telegram MVP до deploy-ready cloud bot core с безопасным RAG и бесплатным 24/7 serving path",
   "current_task": "Cloud bot core стабилизирован; следующий шаг — online catalog sync без домашнего ПК и защита исходного кода",
   "status": "IN_PROGRESS",
-  "active_step": "Добавлены проприетарный LICENSE и GitHub Actions workflow для online nightly sync каталога и Qdrant Cloud",
-  "next_step": "Сделать репозиторий private, завести GitHub secrets QDRANT_URL и QDRANT_KEY, вручную запустить workflow catalog-sync и замерить длительность полного прогона в рамках free quota GitHub Actions",
+  "active_step": "Ночной run catalog-sync изучен: Scrape catalog завершился успешно, Enrich INCI отменен по timeout, SQLite/Qdrant refresh не выполнен",
+  "next_step": "Разбить online sync на staged workflow с resume-state, отфильтровать non-cosmetic категории и затем повторить cloud refresh",
   "blockers": [
     "До production-недрения нужен отдельный legal review по РБ для парсинга, UGC и обработки пользовательских данных",
     "Среди checked free online backends нет варианта с сильной production-grade 24/7 гарантией без рисков pause, inactivity cleanup или quota ceilings",
     "Текущий sqlite.db содержит только 1 продукт после smoke-ingestion, поэтому рекомендации пока ограничены",
-    "GitHub Actions scheduled sync не гарантирует realtime и может задерживаться или упираться в free minutes"
+    "GitHub Actions scheduled sync не гарантирует realtime и может задерживаться или упираться в free minutes",
+    "Исходный код временно публичен на GitHub, поэтому защита кода сейчас опирается только на LICENSE и не обеспечивает скрытие исходников",
+    "Текущий workflow catalog-sync не укладывается в один GitHub job: Enrich INCI обрывается по timeout",
+    "Парсер включает нерелевантные для бота категории каталога, что увеличивает runtime и шум в knowledge base"
   ],
   "artifacts": [
     "docs/PRD_BELITA_BOT.md",
@@ -46,5 +49,5 @@
     "sqlite.db",
     "qdrant_db"
   ],
-  "updated_at": "2026-03-29 02:50"
+  "updated_at": "2026-03-29 09:20"
 }

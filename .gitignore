@@ -24,6 +24,7 @@ data/*.log
 data/*.err.log
 sqlite.db
 qdrant_db/
+tmp-artifacts/
 
 # OS/editor noise
 .DS_Store

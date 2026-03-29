@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import logging
 from datetime import datetime, UTC
 from pathlib import Path
@@ -28,6 +29,12 @@ from common import (
 
 CATALOG_ROOT_URL = f"{BELITA_SHOP_BASE}/katalog/"
 DEFAULT_OUTPUT = Path("data/raw_catalog.json")
+DEFAULT_EXCLUDED_CATEGORY_SLUGS = {
+    "sumki",
+    "gift-wrap",
+    "sredstva-dlya-stirki",
+    "aksessuary-dlya-volos",
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,6 +43,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="JSON output path")
     parser.add_argument("--category-limit", type=int, default=None, help="Process only the first N categories")
     parser.add_argument("--product-limit", type=int, default=None, help="Stop after collecting N product cards")
+    parser.add_argument(
+        "--exclude-slugs",
+        default=",".join(sorted(DEFAULT_EXCLUDED_CATEGORY_SLUGS)),
+        help="Comma-separated category slugs to skip during discovery",
+    )
     parser.add_argument("--resume", action="store_true", help="Resume from existing output JSON if it exists")
     parser.add_argument("--save-every", type=int, default=10, help="Persist progress after every N collected products")
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging")
@@ -91,6 +103,31 @@ def extract_pagination_urls(category_url: str, page_html: str) -> list[str]:
         if href:
             pagination_urls.append(href)
     return dedupe_keep_order(pagination_urls)
+
+
+def parse_slug_csv(value: str | None) -> set[str]:
+    if not value:
+        return set()
+    return {item.strip() for item in value.split(",") if item.strip()}
+
+
+def filter_category_urls(category_urls: list[str], excluded_slugs: set[str]) -> list[str]:
+    filtered: list[str] = []
+    skipped: list[str] = []
+    for category_url in category_urls:
+        slug = category_slug_from_url(category_url)
+        if slug and slug in excluded_slugs:
+            skipped.append(category_url)
+            continue
+        filtered.append(category_url)
+
+    if skipped:
+        logging.info(
+            "Filtered out %s non-target categories by slug: %s",
+            len(skipped),
+            ", ".join(sorted({category_slug_from_url(url) or url for url in skipped})),
+        )
+    return filtered
 
 
 def extract_breadcrumbs(soup: BeautifulSoup) -> list[str]:
@@ -191,6 +228,8 @@ def main() -> None:
 
     catalog_root_html = fetch_html(session, args.catalog_root)
     category_urls = discover_category_urls(catalog_root_html, args.catalog_root)
+    excluded_slugs = parse_slug_csv(args.exclude_slugs)
+    category_urls = filter_category_urls(category_urls, excluded_slugs)
     if args.category_limit is not None:
         category_urls = category_urls[: args.category_limit]
 
@@ -200,7 +239,7 @@ def main() -> None:
     if args.resume and output_path.exists():
         existing_payload = output_path.read_text(encoding="utf-8")
         try:
-            existing_items = __import__("json").loads(existing_payload)
+            existing_items = json.loads(existing_payload)
         except Exception as exc:  # noqa: BLE001
             logging.warning("Failed to parse existing output for resume %s: %s", output_path, exc)
             existing_items = []

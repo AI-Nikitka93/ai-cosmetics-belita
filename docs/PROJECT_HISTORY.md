@@ -132,3 +132,31 @@
 Изменены файлы: docs/RESEARCH_LOG.md, docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
 Результат/доказательство: GitHub Docs подтвердили: Actions для private repo работают по квоте; `GitHub Free` дает `2,000` минут, `500 MB` artifact storage, `10 GB` cache; `schedule` может задерживаться и работает только на default branch.
 Следующий шаг: Создать private GitHub repository, завести secrets, выполнить первый ручной run `catalog-sync` и оценить фактический расход минут на полный sync.
+
+Дата и время: 2026-03-29 03:10
+Роль: P-KNOW Knowledge Manager
+Сделано: Инициализирован локальный git-репозиторий, добавлен безопасный `.gitignore`, создан private GitHub repository `AI-Nikitka93/ai-cosmetics-belita`, код запушен, secrets `QDRANT_URL` и `QDRANT_KEY` загружены, workflow `catalog-sync` запущен. Выявлен внешний account-level блокер GitHub Actions billing policy.
+Изменены файлы: .gitignore, docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
+Результат/доказательство: `git init -b main`; `git commit`; `gh repo create AI-Nikitka93/ai-cosmetics-belita --private --source . --remote origin --push`; `gh secret set QDRANT_URL`; `gh secret set QDRANT_KEY`; `gh workflow run catalog-sync.yml --repo AI-Nikitka93/ai-cosmetics-belita --ref main`; `gh run view 23697344706 --repo AI-Nikitka93/ai-cosmetics-belita` -> `The job was not started because recent account payments have failed or your spending limit needs to be increased`.
+Следующий шаг: Исправить проблему в `GitHub -> Settings -> Billing and plans`, затем повторно запустить `catalog-sync` и проверить успешный старт job.
+
+Дата и время: 2026-03-29 03:16
+Роль: P-KNOW Knowledge Manager
+Сделано: Повторно проверены repo-level настройки GitHub и воспроизведен блокер вторым ручным запуском. Подтверждено, что repository private, Actions enabled, workflow active, а failure происходит до старта runner и не связан с кодом workflow.
+Изменены файлы: docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
+Результат/доказательство: `gh repo view AI-Nikitka93/ai-cosmetics-belita --json name,isPrivate,defaultBranchRef,url,viewerPermission`; `gh api repos/AI-Nikitka93/ai-cosmetics-belita/actions/permissions` -> `enabled:true`; `gh workflow list --repo AI-Nikitka93/ai-cosmetics-belita`; повторный `gh workflow run ...`; `gh run view 23697393378 --repo AI-Nikitka93/ai-cosmetics-belita` -> `The job was not started because recent account payments have failed or your spending limit needs to be increased`.
+Следующий шаг: Разблокировать `Billing and plans` на уровне аккаунта GitHub и только после этого повторить запуск `catalog-sync`.
+
+Дата и время: 2026-03-29 03:30
+Роль: P-KNOW Knowledge Manager
+Сделано: По явному решению пользователя репозиторий переведен в `public`, после чего workflow `catalog-sync` был запущен заново и успешно стартовал на GitHub-hosted runner.
+Изменены файлы: docs/DECISIONS.md, docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
+Результат/доказательство: `gh repo edit AI-Nikitka93/ai-cosmetics-belita --visibility public --accept-visibility-change-consequences`; `gh repo view ...` -> `visibility: PUBLIC`; `gh workflow run catalog-sync.yml --repo AI-Nikitka93/ai-cosmetics-belita --ref main`; `gh run view 23697680498 --json ...` -> шаги `Checkout repository`, `Set up Python`, `Install dependencies` завершены успешно, `Scrape catalog` в progress.
+Следующий шаг: Дождаться завершения run `23697680498`, проверить artifacts/Qdrant reindex и затем перепроверить ответы бота в Telegram на реальных product queries.
+
+Дата и время: 2026-03-29 09:20
+Роль: P-KNOW Knowledge Manager
+Сделано: Изучен ночной run `catalog-sync` и сами parser-скрипты. Подтверждено, что `Scrape catalog` завершился успешно, `Enrich INCI` был отменен по timeout, а workflow не дошел до `Load SQLite` и `Index to Qdrant Cloud`. Из артефактов подтверждены реальные объемы собранных данных.
+Изменены файлы: docs/DECISIONS.md, docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
+Результат/доказательство: `gh run view 23697680498 --json conclusion,jobs`; `gh run download 23697680498 --repo AI-Nikitka93/ai-cosmetics-belita -D tmp-artifacts`; артефакты показали `RawCount=2490`, `EnrichedCount=1100`, `OkCount=804`; лог run показал нерелевантные категории `sumki`, `gift-wrap`, `sredstva-dlya-stirki` и завершение job по timeout.
+Следующий шаг: Переработать parser/workflow на staged sync с category allowlist и resume-state, затем повторить cloud refresh.

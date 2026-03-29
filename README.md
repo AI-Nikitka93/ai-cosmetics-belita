@@ -20,7 +20,17 @@ Public GitHub подходит для прозрачности, но не для
 
 - `.github/workflows/catalog-sync.yml`
 
-Он запускает полный polite sync каталога по расписанию и вручную, собирает:
+Он запускает staged sync каталога по расписанию и вручную:
+
+1. `Scrape catalog`
+2. `Enrich INCI`
+3. `Load SQLite + Qdrant Cloud reindex`
+
+В workflow добавлена фильтрация явно нерелевантных категорий вроде `sumki`,
+`gift-wrap`, `sredstva-dlya-stirki`, `aksessuary-dlya-volos`, чтобы не тратить
+runner time на шумные разделы.
+
+В результате workflow собирает:
 
 - `data/raw_catalog.json`
 - `data/enriched_catalog.json`

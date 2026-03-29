@@ -111,3 +111,17 @@
 
 - Решение: не считать GitHub Actions заменой always-on парсеру.
   - Почему: scheduled workflows могут задерживаться и не дают строгой production-grade гарантии realtime-обновлений.
+
+## 2026-03-29 03:30
+- Решение: временно перевести репозиторий `AI-Nikitka93/ai-cosmetics-belita` в `public`, чтобы снять месячный billing-block GitHub Actions для private repository и запустить online sync немедленно.
+  - Почему: user explicitly выбрал быстрый запуск online parsing; на private repo GitHub Free уже исчерпал `2000/2000` минут, а public repo разрешил стандартный runner без этого блокера.
+
+## 2026-03-29 09:20
+- Решение: текущий online sync нужно разбивать минимум на две фазы `catalog scrape` и `INCI enrichment`, а не держать все в одном workflow job.
+  - Почему: ночной run подтвердил, что `Scrape catalog` успевает завершиться, но `Enrich INCI` системно упирается в `timeout-minutes: 180`, из-за чего `Load SQLite` и `Qdrant Cloud` не стартуют.
+
+- Решение: parser должен фильтровать non-cosmetic категории на уровне discovery/allowlist.
+  - Почему: ночной лог показал попадание в каталог `sumki`, `gift-wrap`, `sredstva-dlya-stirki` и другие нерелевантные разделы, что раздувает runtime и загрязняет knowledge base.
+
+- Решение: для GitHub Actions нужен stateful resume через artifacts или внешний state store.
+  - Почему: текущие скрипты поддерживают `--resume`, но workflow запускается на ephemeral runner и каждый новый run начинает полный проход заново.
