@@ -1,0 +1,10 @@
+BOT_TOKEN=123456:replace-me
+WEBHOOK_SECRET=replace-with-long-random-secret
+GROQ_API_KEY=replace-me
+QDRANT_URL=https://your-cluster-id.us-east.aws.cloud.qdrant.io
+QDRANT_KEY=replace-me
+TURSO_URL=libsql://your-database-name.turso.io
+TURSO_TOKEN=replace-me
+UPSTASH_REDIS_REST_URL=https://your-redis-id.upstash.io
+UPSTASH_REDIS_REST_TOKEN=replace-me
+OPENROUTER_API_KEY=

@@ -1,0 +1,73 @@
+name: catalog-sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *"
+
+concurrency:
+  group: catalog-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      PYTHONUNBUFFERED: "1"
+      QDRANT_URL: ${{ secrets.QDRANT_URL }}
+      QDRANT_KEY: ${{ secrets.QDRANT_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('README.md', 'scripts/*.py', 'domain/*.py') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install requests beautifulsoup4 "qdrant-client[fastembed]"
+
+      - name: Scrape catalog
+        run: python "scripts/catalog_scraper.py" --save-every 25 --verbose
+
+      - name: Enrich INCI
+        run: python "scripts/inci_enricher.py" --save-every 25 --verbose
+
+      - name: Load SQLite
+        run: python "scripts/load_to_sqlite.py" --verbose
+
+      - name: Index to Qdrant Cloud
+        if: ${{ env.QDRANT_URL != '' && env.QDRANT_KEY != '' }}
+        run: >
+          python "scripts/index_to_qdrant.py"
+          --qdrant-url "${{ env.QDRANT_URL }}"
+          --qdrant-api-key "${{ env.QDRANT_KEY }}"
+          --recreate
+          --verbose
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-sync-${{ github.run_number }}
+          retention-days: 14
+          path: |
+            data/raw_catalog.json
+            data/enriched_catalog.json
+            sqlite.db

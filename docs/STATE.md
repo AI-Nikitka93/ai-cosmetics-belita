@@ -1,0 +1,45 @@
+# STATE
+
+- Цель: довести проект `AI Smart Cosmetics BELITA Recommender` до deploy-ready cloud bot core с безопасным RAG и бесплатным `24/7` serving path.
+- Текущий статус: `IN_PROGRESS`
+- Активный шаг: `cloud-bot` опубликован в Cloudflare Workers, `/start` работает, text-query path стабилизирован, а для online parsing и защиты кода добавлены `GitHub Actions`-путь и проприетарная licensing policy.
+- Блокеры:
+  - нет критических блокеров для локального knowledge prototype;
+  - до production нужен отдельный legal review по РБ;
+  - среди checked free online backends нет варианта с сильной production-grade `24/7` гарантией без рисков pause / inactivity cleanup / quota ceilings.
+  - текущий `sqlite.db` содержит только `1` продукт после smoke-ingestion, поэтому рекомендации пока ограничены и требуют полного прогона каталога.
+- Следующий шаг: перенести репозиторий в `private GitHub repo`, завести secrets `QDRANT_URL` и `QDRANT_KEY`, вручную запустить workflow `catalog-sync` и проверить длительность полного прогона в рамках free quota GitHub Actions.
+- Следующий шаг: после первого online sync перепроверить реальные продуктовые рекомендации в Telegram и решить, нужен ли incremental sync вместо full refresh.
+- Артефакты:
+  - `docs/PRD_BELITA_BOT.md`
+  - `ARCHITECTURE.md`
+  - `SAAS_EXECUTION_PLAN.md`
+  - `docs/RESEARCH_LOG.md`
+  - `docs/FREE_ONLINE_KB_OPTIONS.md`
+  - `docs/VERCEL_RUNTIME_OPTION.md`
+  - `docs/FREE_ONLINE_STACK_MAR2026.md`
+  - `docs/FREE_24X7_IMPLEMENTATION_PLAN.md`
+  - `docs/ONLINE_PARSING_GITHUB_PLAN.md`
+  - `CLOUD_ARCHITECTURE.md`
+  - `LICENSE`
+  - `.github/workflows/catalog-sync.yml`
+  - `cloud-bot/package.json`
+  - `cloud-bot/wrangler.jsonc`
+  - `cloud-bot/.dev.vars`
+  - `cloud-bot/src/index.ts`
+  - `cloud-bot/src/bot.ts`
+  - `cloud-bot/src/adapters/`
+  - `cloud-bot/DEPLOY.md`
+  - `docs/BOT_BRANDING.md`
+  - `docs/PROJECT_MAP.md`
+  - `docs/EXEC_PLAN.md`
+  - `scripts/catalog_scraper.py`
+  - `scripts/inci_enricher.py`
+  - `scripts/load_to_sqlite.py`
+  - `scripts/index_to_qdrant.py`
+  - `domain/ingredients.py`
+  - `prompts/system_prompt.txt`
+  - `README.md`
+  - `sqlite.db`
+  - `qdrant_db`
+- Обновлено: `2026-03-29 02:50`

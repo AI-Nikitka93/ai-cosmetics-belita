@@ -1,0 +1,32 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+cloud-bot/.dev.vars
+cloud-bot/.wrangler/
+cloud-bot/tail-log.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Node artifacts
+node_modules/
+cloud-bot/node_modules/
+
+# Local generated data
+data/raw_catalog.json
+data/enriched_catalog.json
+data/*.log
+data/*.err.log
+sqlite.db
+qdrant_db/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

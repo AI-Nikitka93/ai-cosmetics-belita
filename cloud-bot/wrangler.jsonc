@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "belita-skin-match-bot",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-03-28",
+  "workers_dev": true,
+  // Required secrets:
+  // wrangler secret put BOT_TOKEN
+  // wrangler secret put WEBHOOK_SECRET
+  // wrangler secret put GROQ_API_KEY
+  // wrangler secret put QDRANT_URL
+  // wrangler secret put QDRANT_KEY
+  // wrangler secret put TURSO_URL
+  // wrangler secret put TURSO_TOKEN
+  // wrangler secret put UPSTASH_REDIS_REST_URL
+  // wrangler secret put UPSTASH_REDIS_REST_TOKEN
+  // Optional fallback secret:
+  // wrangler secret put OPENROUTER_API_KEY
+  "vars": {
+    "ADMIN_CHAT_ID": "6297262714",
+    "QDRANT_COLLECTION": "product_knowledge",
+    "QDRANT_TOP_K": "4",
+    "QDRANT_QUERY_MODEL": "BAAI/bge-small-en-v1.5",
+    "GROQ_MODEL": "qwen/qwen3-32b",
+    "OPENROUTER_MODEL": "openrouter/free",
+    "CACHE_TTL_SECONDS": "300"
+  }
+}
