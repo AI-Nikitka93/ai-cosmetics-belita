@@ -2,7 +2,7 @@
 
 - Цель: довести проект `AI Smart Cosmetics BELITA Recommender` до deploy-ready cloud bot core с безопасным RAG и бесплатным `24/7` serving path.
 - Текущий статус: `IN_PROGRESS`
-- Активный шаг: ночной run `catalog-sync` изучен; `Scrape catalog` завершился успешно, но `Enrich INCI` был отменен по timeout, а knowledge refresh до SQLite/Qdrant не дошел.
+- Активный шаг: one-shot workflow переработан в staged sync, новая сборка запушена в GitHub и run `23705627347` уже стартовал по схеме `scrape_catalog -> enrich_catalog -> build_and_index`.
 - Блокеры:
   - нет критических блокеров для локального knowledge prototype;
   - до production нужен отдельный legal review по РБ;
@@ -11,7 +11,7 @@
   - исходный код теперь публично видим на GitHub, поэтому фактическая защита кода ослаблена до юридической рамки `LICENSE`.
   - текущий workflow `catalog-sync` слишком длинный для одного GitHub job: `raw_catalog.json` собирается полностью, но `Enrich INCI` не успевает закончиться в пределах `180` минут.
   - parser сейчас захватывает нерелевантные для бота разделы каталога (`sumki`, `gift-wrap`, `sredstva-dlya-stirki` и т.д.), что увеличивает время и шум в данных.
-- Следующий шаг: переработать workflow на staged sync с resume-state и отфильтровать non-cosmetic категории до следующего online run.
+- Следующий шаг: дождаться завершения run `23705627347`, проверить artifacts и факт прохождения до `Load SQLite` и `Index to Qdrant Cloud`.
 - Следующий шаг: после staged sync и повторного cloud reindex заново проверить реальные рекомендации бота в Telegram.
 - Артефакты:
   - `docs/PRD_BELITA_BOT.md`
@@ -46,4 +46,4 @@
   - `sqlite.db`
   - `qdrant_db`
 - Обновлено: `2026-03-29 02:50`
-- Обновлено: `2026-03-29 09:20`
+- Обновлено: `2026-03-29 12:05`

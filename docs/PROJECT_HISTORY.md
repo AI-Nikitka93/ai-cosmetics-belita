@@ -160,3 +160,10 @@
 Изменены файлы: docs/DECISIONS.md, docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
 Результат/доказательство: `gh run view 23697680498 --json conclusion,jobs`; `gh run download 23697680498 --repo AI-Nikitka93/ai-cosmetics-belita -D tmp-artifacts`; артефакты показали `RawCount=2490`, `EnrichedCount=1100`, `OkCount=804`; лог run показал нерелевантные категории `sumki`, `gift-wrap`, `sredstva-dlya-stirki` и завершение job по timeout.
 Следующий шаг: Переработать parser/workflow на staged sync с category allowlist и resume-state, затем повторить cloud refresh.
+
+Дата и время: 2026-03-29 12:05
+Роль: P-KNOW Knowledge Manager
+Сделано: Реализован staged refactor online sync: `catalog-sync` разбит на три jobs, в `catalog_scraper.py` добавлен фильтр исключаемых category slugs, обновленный workflow запушен в GitHub и новый run стартовал.
+Изменены файлы: .gitignore, .github/workflows/catalog-sync.yml, README.md, scripts/catalog_scraper.py, docs/DECISIONS.md, docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
+Результат/доказательство: `python -m py_compile scripts/common.py scripts/catalog_scraper.py scripts/inci_enricher.py scripts/load_to_sqlite.py scripts/index_to_qdrant.py`; `git push origin main`; `gh workflow run catalog-sync.yml --repo AI-Nikitka93/ai-cosmetics-belita --ref main`; `gh run view 23705627347 --json status,conclusion,jobs,url` -> job `scrape_catalog` стартовал по новой схеме.
+Следующий шаг: Дождаться завершения run `23705627347` и проверить, что staged pipeline дошел до `build_and_index`.

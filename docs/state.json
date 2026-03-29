@@ -2,8 +2,8 @@
   "current_goal": "Довести Telegram MVP до deploy-ready cloud bot core с безопасным RAG и бесплатным 24/7 serving path",
   "current_task": "Cloud bot core стабилизирован; следующий шаг — online catalog sync без домашнего ПК и защита исходного кода",
   "status": "IN_PROGRESS",
-  "active_step": "Ночной run catalog-sync изучен: Scrape catalog завершился успешно, Enrich INCI отменен по timeout, SQLite/Qdrant refresh не выполнен",
-  "next_step": "Разбить online sync на staged workflow с resume-state, отфильтровать non-cosmetic категории и затем повторить cloud refresh",
+  "active_step": "Workflow catalog-sync переработан в staged sync, новый run 23705627347 запущен по схеме scrape_catalog -> enrich_catalog -> build_and_index",
+  "next_step": "Дождаться завершения run 23705627347, проверить artifacts, SQLite/Qdrant refresh и затем перепроверить Telegram рекомендации",
   "blockers": [
     "До production-недрения нужен отдельный legal review по РБ для парсинга, UGC и обработки пользовательских данных",
     "Среди checked free online backends нет варианта с сильной production-grade 24/7 гарантией без рисков pause, inactivity cleanup или quota ceilings",
@@ -49,5 +49,5 @@
     "sqlite.db",
     "qdrant_db"
   ],
-  "updated_at": "2026-03-29 09:20"
+  "updated_at": "2026-03-29 12:05"
 }
