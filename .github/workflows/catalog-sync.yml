@@ -2,6 +2,12 @@ name: catalog-sync
 
 on:
   workflow_dispatch:
+    inputs:
+      full_refresh:
+        description: Ignore saved state and rebuild from scratch
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: "17 3 * * *"
 
@@ -10,6 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -28,6 +35,22 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Restore previous raw catalog state
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.full_refresh }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >
+          python "scripts/restore_sync_state.py"
+          --repo "${{ github.repository }}"
+          --workflow "catalog-sync.yml"
+          --branch "${{ github.ref_name }}"
+          --artifact-name "catalog-sync-state"
+          --artifact-prefix "raw-catalog-"
+          --conclusions "success,failure,cancelled"
+          --exclude-run-id "${{ github.run_id }}"
+          --restore-file "data/raw_catalog.json"
+          --verbose
+
       - name: Cache pip
         uses: actions/cache@v4
         with:
@@ -42,11 +65,18 @@ jobs:
           python -m pip install requests beautifulsoup4 "qdrant-client[fastembed]"
 
       - name: Scrape catalog
-        run: >
-          python "scripts/catalog_scraper.py"
-          --save-every 25
-          --verbose
-          --exclude-slugs "sumki,gift-wrap,sredstva-dlya-stirki,aksessuary-dlya-volos"
+        shell: bash
+        run: |
+          CMD=(
+            python "scripts/catalog_scraper.py"
+            --save-every 25
+            --verbose
+            --exclude-slugs "sumki,gift-wrap,sredstva-dlya-stirki,aksessuary-dlya-volos"
+          )
+          if [[ "${{ github.event_name }}" != "workflow_dispatch" || "${{ inputs.full_refresh }}" != "true" ]]; then
+            CMD+=(--resume)
+          fi
+          "${CMD[@]}"
 
       - name: Upload raw catalog artifact
         if: always()
@@ -73,6 +103,22 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Restore previous enriched catalog state
+        if: ${{ github.event_name != 'workflow_dispatch' || !inputs.full_refresh }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >
+          python "scripts/restore_sync_state.py"
+          --repo "${{ github.repository }}"
+          --workflow "catalog-sync.yml"
+          --branch "${{ github.ref_name }}"
+          --artifact-name "catalog-sync-state"
+          --artifact-prefix "enriched-catalog-"
+          --conclusions "success,failure,cancelled"
+          --exclude-run-id "${{ github.run_id }}"
+          --restore-file "data/enriched_catalog.json"
+          --verbose
+
       - name: Cache pip
         uses: actions/cache@v4
         with:
@@ -93,7 +139,17 @@ jobs:
           path: data
 
       - name: Enrich INCI
-        run: python "scripts/inci_enricher.py" --save-every 25 --verbose
+        shell: bash
+        run: |
+          CMD=(
+            python "scripts/inci_enricher.py"
+            --save-every 25
+            --verbose
+          )
+          if [[ "${{ github.event_name }}" != "workflow_dispatch" || "${{ inputs.full_refresh }}" != "true" ]]; then
+            CMD+=(--resume)
+          fi
+          "${CMD[@]}"
 
       - name: Upload enriched catalog artifact
         if: always()
@@ -147,12 +203,18 @@ jobs:
 
       - name: Index to Qdrant Cloud
         if: ${{ env.QDRANT_URL != '' && env.QDRANT_KEY != '' }}
-        run: >
-          python "scripts/index_to_qdrant.py"
-          --qdrant-url "${{ env.QDRANT_URL }}"
-          --qdrant-api-key "${{ env.QDRANT_KEY }}"
-          --recreate
-          --verbose
+        shell: bash
+        run: |
+          CMD=(
+            python "scripts/index_to_qdrant.py"
+            --qdrant-url "${{ env.QDRANT_URL }}"
+            --qdrant-api-key "${{ env.QDRANT_KEY }}"
+            --verbose
+          )
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.full_refresh }}" == "true" ]]; then
+            CMD+=(--recreate)
+          fi
+          "${CMD[@]}"
 
       - name: Upload artifacts
         if: always()
@@ -160,6 +222,18 @@ jobs:
         with:
           name: catalog-sync-${{ github.run_number }}
           retention-days: 14
+          path: |
+            data/raw_catalog.json
+            data/enriched_catalog.json
+            sqlite.db
+
+      - name: Upload latest sync state
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catalog-sync-state
+          retention-days: 14
+          overwrite: true
           path: |
             data/raw_catalog.json
             data/enriched_catalog.json
