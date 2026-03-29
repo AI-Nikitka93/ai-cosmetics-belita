@@ -90,7 +90,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: raw-catalog-${{ github.run_number }}
-          path: .
+          path: data
 
       - name: Enrich INCI
         run: python "scripts/inci_enricher.py" --save-every 25 --verbose
@@ -140,7 +140,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: enriched-catalog-${{ github.run_number }}
-          path: .
+          path: data
 
       - name: Load SQLite
         run: python "scripts/load_to_sqlite.py" --verbose
