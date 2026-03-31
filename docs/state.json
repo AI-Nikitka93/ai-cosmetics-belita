@@ -2,8 +2,8 @@
   "current_goal": "Довести Telegram MVP до deploy-ready cloud bot core с безопасным RAG и бесплатным 24/7 serving path",
   "current_task": "Live Telegram cloud bot находится в late quality-hardening / pre-beta: unified face-ranking pass уже выкачен, face regression audit формализован скриптом, formal promptfoo eval gate уже добавлен, единый beta:gate уже собран, webhook update handling усилен атомарным reservation + fail-safe fallback, recommendation memory уже split на catalog/compare/answer slots, а главный фокус — живой Telegram regression gate, observability и beta-ready stabilization",
   "status": "IN_PROGRESS",
-  "active_step": "Stage 1 Telegram Bot live в Telegram; cloud runtime и webhook восстановлены, update processing резервируется атомарно, fail-safe fallback уже задеплоен, recommendation memory split на catalog/compare/answer slots уже выкачен, scripted regression audit, formal promptfoo eval gate и единый beta:gate уже есть, а следующий фокус — живой Telegram regression suite и beta-ready quality gate",
-  "next_step": "После следующего push активировать telegram-quality-gate workflow на GitHub и параллельно прогнать живой Telegram regression suite, затем принять честное решение beta-ready или продолжать hardening",
+  "active_step": "Stage 1 Telegram Bot live в Telegram; cloud runtime и webhook восстановлены, update processing резервируется атомарно, fail-safe fallback уже задеплоен, recommendation memory split на catalog/compare/answer slots уже выкачен, scripted regression audit, formal promptfoo eval gate, единый beta:gate и remote GitHub quality workflow уже есть, а следующий фокус — живой Telegram regression suite и beta-ready quality gate",
+  "next_step": "Прогнать живой Telegram regression suite поверх уже зеленых local/remote quality gates, затем принять честное решение beta-ready или продолжать hardening",
   "blockers": [
     "До production-недрения нужен отдельный legal review по РБ для парсинга, UGC и обработки пользовательских данных",
     "Среди checked free online backends нет варианта с сильной production-grade 24/7 гарантией без рисков pause, inactivity cleanup или quota ceilings",
@@ -12,7 +12,7 @@
     "GitHub Actions scheduled sync не гарантирует realtime и может задерживаться или упираться в free minutes",
     "Исходный код временно публичен на GitHub, поэтому защита кода сейчас опирается только на LICENSE и не обеспечивает скрытие исходников",
     "Нужен более зрелый observability layer для ranking regressions, webhook/runtime anomalies и session-level quality diagnostics",
-    "Для реального CI-прогона нового telegram-quality-gate workflow нужен push workflow-файла в remote GitHub repository",
+    "Для окончательного beta-ready verdict по-прежнему нужен живой Telegram UI regression, который нельзя полностью закрыть только через backend/CI gates",
     "Нужен живой Telegram regression-check для нового split-memory path, чтобы подтвердить catalog/compare/answer continuation без UX regressions",
     "Локальный sqlite.db не отражает фактическое live-состояние cloud knowledge base",
     "Парсер и sync-path все еще включают нерелевантные категории и могут вносить шум в knowledge base"
@@ -89,5 +89,5 @@
       "split recommendation memory across catalog/compare/answer session slots"
     ]
   },
-  "updated_at": "2026-04-01 01:47"
+  "updated_at": "2026-04-01 02:05"
 }

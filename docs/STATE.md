@@ -4,6 +4,7 @@
 - Текущий статус: `IN_PROGRESS`
 - Активный шаг: `Stage 1 Telegram Bot` остается в late quality-hardening / pre-beta phase; cloud runtime живой, webhook после incident-fix дополнительно усилен атомарным update reservation и fail-safe fallback на уровне апдейта, follow-up memory уже разнесена на отдельные `catalog / compare / answer` session slots, face browse quality теперь прикрыта scripted regression-аудитом и formal eval gate через `promptfoo`, а единый `beta:gate` уже собирает эти проверки в один verdict.
 - Операционный статус: transient webhook incident `2026-04-01 00:02-00:06 +03:00` диагностирован; `health=200`, controlled `/webhook` smoke проходит, stuck Telegram updates вручную replayed, `pending_update_count` снова `0`.
+- Операционный статус: текущий live Worker уже синхронизирован с последним quality-sprint пакетом; после deploy подтвержден `health=200`, а GitHub workflow `Telegram Quality Gate` уже проходит на remote репозитории.
 - Блокеры:
 - до production нужен отдельный legal review по РБ для парсинга, пользовательских данных и коммуникации на границе косметика / medical;
 - среди free-tier онлайн-стеков все еще нет сильной production-grade гарантии `24/7` без рисков квот, пауз и provider-specific ограничений;
@@ -13,7 +14,7 @@
 - исходный код остается публично доступным на GitHub, поэтому защита кода по-прежнему в основном юридическая (`LICENSE`);
 - локальный `sqlite.db` по-прежнему не отражает реальное облачное состояние и не годится как главная truth-source для текущего live-бота;
 - parser и sync-path все еще нужно чистить от нерелевантных категорий и drift между cloud index и source catalog.
-- Следующий шаг: прогнать живой Telegram regression уже поверх нового split-memory path, formal promptfoo gate и единого `beta:gate`, а затем честно принять решение `beta-ready / still hardening`.
+- Следующий шаг: прогнать живой Telegram regression уже поверх нового split-memory path, formal promptfoo gate, зеленого `beta:gate` и зеленого GitHub workflow, а затем честно принять решение `beta-ready / still hardening`.
 - Следующий шаг: подготовить следующий ranking-layer на `Qdrant hybrid + metadata filtering`, чтобы уменьшить зависимость от чисто ручных эвристик.
 - Следующий шаг: после следующего push активировать новый workflow `telegram-quality-gate.yml` в GitHub Actions и прогнать его уже на remote-репозитории.
 - Следующий шаг: отдельно проверить в Telegram, что duplicate replies после временных сбоев и параллельных retry больше не воспроизводятся после атомарного update reservation.
@@ -82,6 +83,7 @@
     - formal promptfoo eval gate shipped as `npm run eval:promptfoo` with live Qdrant-backed checks for `pigmentation / barrier / sensitive / general face creams`.
     - unified local beta-ready gate shipped as `npm run beta:gate`; matching CI workflow `telegram-quality-gate.yml` added for repeatable quality checks in GitHub Actions.
     - GitHub repo secrets `QDRANT_URL` и `QDRANT_KEY` уже синхронизированы через `gh`, так что CI-сторона quality gate подготовлена; workflow останется запустить после push workflow-файла в remote.
+    - remote GitHub workflow `Telegram Quality Gate` уже успешно проходит после push quality-sprint пакета и workflow refresh на актуальные action versions.
     - cached replies теперь тоже обновляют recommendation session, поэтому `ссылки дай` и индексные follow-up вроде `сравни 1 и 3` больше не должны цепляться к старому compare-session;
     - если пользователь явно запросил сравнение двух позиций, а в текущем session only one index valid, бот теперь не деградирует молча в разбор одного товара.
     - recommendation memory split shipped: `catalog`, `compare` и `answer` session slots теперь живут раздельно и выбираются по типу follow-up.
@@ -105,3 +107,4 @@
 - Обновлено: `2026-04-01 00:52`
 - Обновлено: `2026-04-01 01:06`
 - Обновлено: `2026-04-01 01:47`
+- Обновлено: `2026-04-01 02:05`
