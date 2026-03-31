@@ -1,0 +1,45 @@
+name: Telegram Quality Gate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "cloud-bot/**"
+      - ".github/workflows/telegram-quality-gate.yml"
+
+jobs:
+  telegram-quality-gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloud-bot
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: cloud-bot/package-lock.json
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Prepare eval env
+        shell: bash
+        run: |
+          cat > .dev.vars <<EOF
+          BOT_TOKEN=dummy
+          WEBHOOK_SECRET=dummy
+          GROQ_API_KEY=dummy
+          QDRANT_URL=${{ secrets.QDRANT_URL }}
+          QDRANT_KEY=${{ secrets.QDRANT_KEY }}
+          QDRANT_COLLECTION=${{ vars.QDRANT_COLLECTION || 'product_knowledge' }}
+          QDRANT_TOP_K=10
+          EOF
+
+      - name: Run beta gate
+        run: npm run beta:gate

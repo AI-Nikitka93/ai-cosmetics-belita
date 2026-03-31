@@ -125,3 +125,35 @@
 
 - Решение: для GitHub Actions нужен stateful resume через artifacts или внешний state store.
   - Почему: текущие скрипты поддерживают `--resume`, но workflow запускается на ephemeral runner и каждый новый run начинает полный проход заново.
+
+## 2026-04-01 00:21
+- Решение: Telegram webhook update handling должен резервировать `update_id` атомарно еще до обработки, а при необработанном runtime exception отдавать fail-safe reply вместо `500`.
+  - Почему: read-then-write дедупликация защищала только от последовательных ретраев, но не от параллельных duplicate deliveries и не предотвращала queue wedging после transient runtime failures.
+
+- Решение: quality gate по face browse ranking должен иметь отдельный scripted regression audit поверх live Qdrant Cloud, а не держаться только на ручных Telegram smoke-tests.
+  - Почему: это позволяет быстро и воспроизводимо проверять `pigmentation / barrier / sensitive / general face creams` после ranking-правок и снижает риск снова ходить по тем же ручным сценариям.
+
+## 2026-04-01 00:47
+- Решение: следующим архитектурным шагом для follow-up UX должен стать split memory layer (`last_catalog_session`, `last_compare_session`, `last_answer_session`), а не одна общая recommendation session.
+  - Почему: живой Telegram лог показал, что разные follow-up сценарии (`ссылки`, indexed compare, composition follow-up) конфликтуют сильнее всего именно через shared session slot.
+
+- Решение: следующий formal quality gate для Telegram ranking и UX нужно строить вокруг `promptfoo`-style eval suite.
+  - Почему: внешний research подтвердил, что CI/CD eval gate даст проекту гораздо более устойчивый regression-контур, чем повторяющиеся ручные smoke-tests.
+
+- Решение: `Mini App Lite` стоит планировать только как thin companion interface поверх уже работающего Telegram bot, а не как раннюю замену основного UX.
+  - Почему: внешние Mini App references хороши для profile/recommendations UI, но не решают текущую главную проблему качества ranking и follow-up памяти.
+
+## 2026-04-01 00:52
+- Решение: split recommendation memory нужно выкатывать с backward-compatible fallback на legacy session key.
+  - Почему: это позволяет безопасно раскатывать новый memory layer без потери текущих live sessions и без резкого обрыва follow-up UX для пользователей, которые уже были в диалоге.
+
+## 2026-04-01 01:06
+- Решение: formal Telegram quality gate нужно держать в репозитории как `promptfoo` suite поверх live Qdrant-backed retrieval, а не только как ad-hoc smoke script.
+  - Почему: scripted `regression-audit` хорош для инженерной локальной проверки, но `promptfoo` дает более стандартный eval contract, удобный для CI/CD и дальнейшего beta-ready gating.
+
+- Решение: promptfoo provider для проекта нужно запускать через тонкую `mjs`-обертку + `tsx` runner, а не напрямую импортировать production TS-модули в custom provider.
+  - Почему: актуальный promptfoo loader ожидает constructor-style provider и на Windows/ESM надежнее работает через `node + tsx/dist/cli.mjs`, чем через прямой импорт worker-oriented TS-дерева.
+
+## 2026-04-01 01:47
+- Решение: следующий operational quality layer для Telegram MVP нужно собирать в единый `beta:gate` и отдельный GitHub Actions workflow, а не требовать ручного запуска трех независимых команд.
+  - Почему: так quality gate становится воспроизводимым и для локальной инженерной работы, и для CI, а финальный `beta-ready` verdict перестает зависеть от того, не забыли ли мы какой-то из под-шагов.

@@ -46,4 +46,5 @@ export interface LLMAnswerInput {
   userProfile: UserProfile | null;
   memorySummary: MemorySummary | null;
   productMatches: ProductMatch[];
+  maxProducts?: number;
 }

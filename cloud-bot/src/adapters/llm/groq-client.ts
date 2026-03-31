@@ -10,28 +10,162 @@ interface ChatCompletionResponse {
   }>;
 }
 
-function sanitizeModelAnswer(rawAnswer: string): string {
-  const withoutThinkBlocks = rawAnswer.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
-  return withoutThinkBlocks || rawAnswer.trim();
+const DEFAULT_PRODUCT_LIMIT = 3;
+const MAX_PRODUCT_LIMIT = 10;
+
+function getAnswerProductLimit(input: LLMAnswerInput): number {
+  const requested = input.maxProducts ?? DEFAULT_PRODUCT_LIMIT;
+  return Math.max(1, Math.min(requested, MAX_PRODUCT_LIMIT));
 }
 
-function formatProducts(products: LLMAnswerInput["productMatches"]): string {
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/["'`«»„“”]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function translateSkinType(value: string): string {
+  switch (value) {
+    case "dry":
+      return "сухая";
+    case "oily":
+      return "жирная";
+    case "combination":
+      return "комбинированная";
+    case "sensitive":
+      return "чувствительная";
+    case "barrier_impaired":
+      return "с нарушенным барьером";
+    case "acne_prone":
+      return "склонная к высыпаниям";
+    default:
+      return value;
+  }
+}
+
+function translateConcern(value: string): string {
+  switch (value) {
+    case "dryness":
+      return "увлажнение и сухость";
+    case "barrier_support":
+      return "восстановление барьера";
+    case "breakouts":
+      return "высыпания";
+    case "pigmentation":
+      return "пигментация";
+    case "anti_age":
+      return "anti-age";
+    case "cleansing":
+      return "очищение";
+    case "targeted_treatment":
+      return "точечный уход";
+    case "texture":
+      return "текстура кожи";
+    default:
+      return value;
+  }
+}
+
+function formatHumanFlags(flags: string[]): string {
+  const labels: string[] = [];
+
+  if (flags.includes("fragrance_free")) labels.push("без отдушки");
+  if (flags.includes("gentle_fit")) labels.push("мягкая формула");
+  if (flags.includes("has_barrier_support")) labels.push("есть барьерная поддержка");
+  if (flags.includes("has_soothing_agents")) labels.push("есть успокаивающие компоненты");
+  if (flags.includes("has_humectants")) labels.push("есть увлажняющие компоненты");
+  if (flags.includes("has_acids")) labels.push("есть кислоты");
+  if (flags.includes("has_retinoid")) labels.push("есть ретиноид");
+  if (flags.includes("has_drying_alcohol")) labels.push("есть риск пересушивания");
+
+  return labels.length > 0 ? labels.join(", ") : "без явных спецпометок";
+}
+
+function formatHumanProfileList(values: string[], translator: (value: string) => string): string {
+  if (values.length === 0) {
+    return "не указаны";
+  }
+  return values.map(translator).join(", ");
+}
+
+function sanitizeModelAnswer(rawAnswer: string): string {
+  const withoutThinkBlocks = rawAnswer.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  const base = withoutThinkBlocks || rawAnswer.trim();
+  const paragraphs = base
+    .split(/\n\s*\n/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  while (paragraphs.length > 0) {
+    const last = paragraphs[paragraphs.length - 1];
+    if (/^(хотите|нужно ли|если хотите|могу также|могу подобрать)/i.test(last) || last.endsWith("?")) {
+      paragraphs.pop();
+      continue;
+    }
+    break;
+  }
+
+  return paragraphs
+    .join("\n\n")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .trim();
+}
+
+function countRecommendedProducts(answer: string, limit: number): number {
+  const contentBeforeLinks = answer.split(/ссылки на продукты:/i)[0] ?? answer;
+  const matches = contentBeforeLinks.match(/^\d+\.\s+/gm);
+  return Math.min(matches?.length ?? 0, limit);
+}
+
+function appendProductLinks(answer: string, products: LLMAnswerInput["productMatches"], limit: number): string {
+  const normalizedAnswer = normalizeText(answer);
+  const mentionedProducts = products.filter((product) => normalizedAnswer.includes(normalizeText(product.name)));
+  const recommendedCount = countRecommendedProducts(answer, limit);
+  const baseProducts =
+    recommendedCount > 0
+      ? mentionedProducts.length >= recommendedCount
+        ? mentionedProducts.slice(0, recommendedCount)
+        : products.slice(0, recommendedCount)
+      : (mentionedProducts.length > 0 ? mentionedProducts : products).slice(0, limit);
+
+  const linkProducts = baseProducts.filter((product) => Boolean(product.sourceUrl));
+
+  const withLinks = linkProducts.map((product, index) => `${index + 1}. ${product.name}: ${product.sourceUrl}`);
+
+  if (withLinks.length === 0) {
+    return answer;
+  }
+
+  const existingLinkFound = withLinks.some((line) => answer.includes(line.split(": ").at(-1) ?? ""));
+  if (existingLinkFound) {
+    return answer;
+  }
+
+  return [answer, "Ссылки на продукты:", ...withLinks].join("\n");
+}
+
+function formatProducts(products: LLMAnswerInput["productMatches"], limit: number): string {
   if (products.length === 0) {
     return "Релевантные товары не найдены.";
   }
 
   return products
+    .slice(0, limit)
     .map((product, index) => {
-      const ingredientText = product.ingredients.length > 0 ? product.ingredients.slice(0, 12).join(", ") : "нет списка ингредиентов";
-      const flagText = product.flags.length > 0 ? product.flags.join(", ") : "нет флагов";
+      const ingredientText = product.ingredients.length > 0 ? product.ingredients.slice(0, 8).join(", ") : "нет списка ингредиентов";
       return [
         `#${index + 1}: ${product.name}`,
         `Бренд: ${product.brand}`,
         `Линия: ${product.line ?? "не указана"}`,
         `Категория: ${product.category ?? "не указана"}`,
         `Назначение: ${product.purpose ?? "не указано"}`,
+        `Подходит по признакам: ${formatHumanProfileList(product.skinTypes, translateSkinType)}`,
+        `Задачи: ${formatHumanProfileList(product.concerns, translateConcern)}`,
         `Ингредиенты: ${ingredientText}`,
-        `Флаги: ${flagText}`,
+        `Сильные стороны и ограничения: ${formatHumanFlags(product.flags)}`,
         `URL: ${product.sourceUrl ?? "нет"}`
       ].join("\n");
     })
@@ -41,18 +175,19 @@ function formatProducts(products: LLMAnswerInput["productMatches"]): string {
 function buildUserContext(input: LLMAnswerInput): string {
   const profile = input.userProfile;
   const memory = input.memorySummary?.summary ?? "Память пока пуста.";
+  const limit = getAnswerProductLimit(input);
 
   return [
     `Сообщение пользователя: ${input.userMessage}`,
     "Профиль пользователя:",
     `- Имя: ${profile?.firstName ?? "не указано"}`,
-    `- Тип кожи: ${profile?.skinType ?? "не указан"}`,
-    `- Жалобы: ${profile?.concerns.join(", ") || "не указаны"}`,
+    `- Тип кожи: ${profile?.skinType ? translateSkinType(profile.skinType) : "не указан"}`,
+    `- Жалобы: ${profile ? formatHumanProfileList(profile.concerns, translateConcern) : "не указаны"}`,
     `- Избегать отдушек: ${profile?.avoidFragrance ? "да" : "нет"}`,
     `- Предпочитать деликатный уход: ${profile?.preferGentle ? "да" : "нет"}`,
     `- Self-reported condition: ${profile?.selfReportedCondition ?? "не указано"}`,
     `Память: ${memory}`,
-    `RAG-контекст:\n${formatProducts(input.productMatches)}`
+    `RAG-контекст:\n${formatProducts(input.productMatches, limit)}`
   ].join("\n");
 }
 
@@ -61,10 +196,10 @@ function buildNoMatchesAnswer(input: LLMAnswerInput): string {
   const hints: string[] = [];
 
   if (profile?.skinType) {
-    hints.push(`тип кожи: ${profile.skinType}`);
+    hints.push(`тип кожи: ${translateSkinType(profile.skinType)}`);
   }
   if (profile?.concerns.length) {
-    hints.push(`жалобы: ${profile.concerns.join(", ")}`);
+    hints.push(`жалобы: ${formatHumanProfileList(profile.concerns, translateConcern)}`);
   }
   if (profile?.avoidFragrance) {
     hints.push("без отдушек");
@@ -107,18 +242,22 @@ export class GroqClient {
     }
 
     const content = buildUserContext(input);
+    const productLimit = getAnswerProductLimit(input);
+    const maxTokens = productLimit > 5 ? 1600 : 950;
 
     try {
-      return await this.callGroq(content);
+      const answer = await this.callGroq(content, maxTokens);
+      return appendProductLinks(answer, input.productMatches, productLimit);
     } catch (primaryError) {
       if (!this.openRouterApiKey) {
         throw primaryError;
       }
-      return this.callOpenRouter(content);
+      const answer = await this.callOpenRouter(content, maxTokens);
+      return appendProductLinks(answer, input.productMatches, productLimit);
     }
   }
 
-  private async callGroq(userContent: string): Promise<string> {
+  private async callGroq(userContent: string, maxTokens: number): Promise<string> {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -128,7 +267,7 @@ export class GroqClient {
       body: JSON.stringify({
         model: this.model,
         temperature: 0.2,
-        max_tokens: 700,
+        max_tokens: maxTokens,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userContent }
@@ -149,7 +288,7 @@ export class GroqClient {
     return sanitizeModelAnswer(answer);
   }
 
-  private async callOpenRouter(userContent: string): Promise<string> {
+  private async callOpenRouter(userContent: string, maxTokens: number): Promise<string> {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -159,7 +298,7 @@ export class GroqClient {
       body: JSON.stringify({
         model: this.openRouterModel,
         temperature: 0.2,
-        max_tokens: 700,
+        max_tokens: maxTokens,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userContent }

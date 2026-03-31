@@ -233,4 +233,88 @@ export class TursoUserRepository {
       args: [userId, summary, nowIso()]
     });
   }
+
+  async saveProfile(
+    userId: string,
+    input: {
+      skinType: string | null;
+      concerns: string[];
+      avoidFragrance: boolean;
+      preferGentle: boolean;
+      selfReportedCondition?: string | null;
+    }
+  ): Promise<void> {
+    await this.ensureSchema();
+
+    await this.client.execute({
+      sql: `
+        INSERT INTO user_profiles (
+          user_id,
+          skin_type,
+          concerns_json,
+          avoid_fragrance,
+          prefer_gentle,
+          self_reported_condition,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+          skin_type = excluded.skin_type,
+          concerns_json = excluded.concerns_json,
+          avoid_fragrance = excluded.avoid_fragrance,
+          prefer_gentle = excluded.prefer_gentle,
+          self_reported_condition = excluded.self_reported_condition,
+          updated_at = excluded.updated_at
+      `,
+      args: [
+        userId,
+        input.skinType,
+        JSON.stringify(input.concerns),
+        input.avoidFragrance ? 1 : 0,
+        input.preferGentle ? 1 : 0,
+        input.selfReportedCondition ?? null,
+        nowIso()
+      ]
+    });
+  }
+
+  async resetProfile(userId: string): Promise<void> {
+    await this.ensureSchema();
+
+    const timestamp = nowIso();
+
+    await this.client.execute({
+      sql: `
+        INSERT INTO user_profiles (
+          user_id,
+          skin_type,
+          concerns_json,
+          avoid_fragrance,
+          prefer_gentle,
+          self_reported_condition,
+          updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+          skin_type = excluded.skin_type,
+          concerns_json = excluded.concerns_json,
+          avoid_fragrance = excluded.avoid_fragrance,
+          prefer_gentle = excluded.prefer_gentle,
+          self_reported_condition = excluded.self_reported_condition,
+          updated_at = excluded.updated_at
+      `,
+      args: [userId, null, JSON.stringify([]), 0, 1, null, timestamp]
+    });
+
+    await this.client.execute({
+      sql: `
+        INSERT INTO memory_summaries (user_id, summary, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET
+          summary = excluded.summary,
+          updated_at = excluded.updated_at
+      `,
+      args: [userId, DEFAULT_MEMORY_SUMMARY, timestamp]
+    });
+  }
 }

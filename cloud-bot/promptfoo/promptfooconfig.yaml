@@ -1,0 +1,41 @@
+description: BELITA Telegram ranking eval gate for live Qdrant Cloud retrieval
+prompts:
+  - "{{query}}"
+providers:
+  - file://./providers/qdrant-search-provider.mjs
+tests:
+  - description: Pigmentation shortlist stays first-line, non-decorative, and focused
+    vars:
+      scenario: pigmentation
+      query: "что взять у Belita для пигментации"
+      limit: 6
+    assert:
+      - type: javascript
+        value: file://./assertions/ranking-scenario-check.mjs
+
+  - description: Barrier creams shortlist stays restorative and low-noise
+    vars:
+      scenario: barrier
+      query: "подбери 5 кремов Belita для восстановления барьера"
+      limit: 5
+    assert:
+      - type: javascript
+        value: file://./assertions/ranking-scenario-check.mjs
+
+  - description: Sensitive dry face shortlist keeps OIL-КРЕМ and dry-sensitive focus
+    vars:
+      scenario: sensitive
+      query: "что у Belita есть для чувствительной сухой кожи лица"
+      limit: 6
+    assert:
+      - type: javascript
+        value: file://./assertions/ranking-scenario-check.mjs
+
+  - description: General face cream list stays broad, cream-like, and low-noise
+    vars:
+      scenario: general_face_creams
+      query: "Напиши 10 кремов для лица и оценку по 10 балльной системе каждого из них"
+      limit: 10
+    assert:
+      - type: javascript
+        value: file://./assertions/ranking-scenario-check.mjs

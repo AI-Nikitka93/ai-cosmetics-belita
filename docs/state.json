@@ -1,17 +1,21 @@
 {
   "current_goal": "Довести Telegram MVP до deploy-ready cloud bot core с безопасным RAG и бесплатным 24/7 serving path",
-  "current_task": "Cloud bot core стабилизирован; следующий шаг — online catalog sync без домашнего ПК и защита исходного кода",
+  "current_task": "Live Telegram cloud bot находится в late quality-hardening / pre-beta: unified face-ranking pass уже выкачен, face regression audit формализован скриптом, formal promptfoo eval gate уже добавлен, единый beta:gate уже собран, webhook update handling усилен атомарным reservation + fail-safe fallback, recommendation memory уже split на catalog/compare/answer slots, а главный фокус — живой Telegram regression gate, observability и beta-ready stabilization",
   "status": "IN_PROGRESS",
-  "active_step": "Workflow catalog-sync переработан в staged sync, новый run 23705627347 запущен по схеме scrape_catalog -> enrich_catalog -> build_and_index",
-  "next_step": "Дождаться завершения run 23705627347, проверить artifacts, SQLite/Qdrant refresh и затем перепроверить Telegram рекомендации",
+  "active_step": "Stage 1 Telegram Bot live в Telegram; cloud runtime и webhook восстановлены, update processing резервируется атомарно, fail-safe fallback уже задеплоен, recommendation memory split на catalog/compare/answer slots уже выкачен, scripted regression audit, formal promptfoo eval gate и единый beta:gate уже есть, а следующий фокус — живой Telegram regression suite и beta-ready quality gate",
+  "next_step": "После следующего push активировать telegram-quality-gate workflow на GitHub и параллельно прогнать живой Telegram regression suite, затем принять честное решение beta-ready или продолжать hardening",
   "blockers": [
     "До production-недрения нужен отдельный legal review по РБ для парсинга, UGC и обработки пользовательских данных",
     "Среди checked free online backends нет варианта с сильной production-grade 24/7 гарантией без рисков pause, inactivity cleanup или quota ceilings",
-    "Текущий sqlite.db содержит только 1 продукт после smoke-ingestion, поэтому рекомендации пока ограничены",
+    "После единого pass, scripted regression audit и promptfoo eval gate ranking стал заметно лучше для sensitive/barrier/general creams, а pigmentation уже проходит локальный quality gate, но все еще требует живой Telegram проверки",
+    "Continuation-сценарии и длинные catalog-style ответы уже стали заметно лучше, но еще требуют серии regression-checks",
     "GitHub Actions scheduled sync не гарантирует realtime и может задерживаться или упираться в free minutes",
     "Исходный код временно публичен на GitHub, поэтому защита кода сейчас опирается только на LICENSE и не обеспечивает скрытие исходников",
-    "Текущий workflow catalog-sync не укладывается в один GitHub job: Enrich INCI обрывается по timeout",
-    "Парсер включает нерелевантные для бота категории каталога, что увеличивает runtime и шум в knowledge base"
+    "Нужен более зрелый observability layer для ranking regressions, webhook/runtime anomalies и session-level quality diagnostics",
+    "Для реального CI-прогона нового telegram-quality-gate workflow нужен push workflow-файла в remote GitHub repository",
+    "Нужен живой Telegram regression-check для нового split-memory path, чтобы подтвердить catalog/compare/answer continuation без UX regressions",
+    "Локальный sqlite.db не отражает фактическое live-состояние cloud knowledge base",
+    "Парсер и sync-path все еще включают нерелевантные категории и могут вносить шум в knowledge base"
   ],
   "artifacts": [
     "docs/PRD_BELITA_BOT.md",
@@ -35,10 +39,15 @@
     "cloud-bot/src/adapters/qdrant/qdrant-client.ts",
     "cloud-bot/src/adapters/turso/user-repository.ts",
     "cloud-bot/src/adapters/upstash/cache-store.ts",
+    "cloud-bot/scripts/regression-audit.ts",
     "cloud-bot/DEPLOY.md",
+    "cloud-bot/promptfoo/",
+    ".github/workflows/telegram-quality-gate.yml",
+    "docs/BETA_READY_GATE.md",
     "docs/BOT_BRANDING.md",
     "docs/PROJECT_MAP.md",
     "docs/EXEC_PLAN.md",
+    "docs/TELEGRAM_REGRESSION_SUITE.md",
     "scripts/catalog_scraper.py",
     "scripts/inci_enricher.py",
     "scripts/load_to_sqlite.py",
@@ -49,5 +58,36 @@
     "sqlite.db",
     "qdrant_db"
   ],
-  "updated_at": "2026-03-29 12:05"
+  "live_runtime": {
+    "worker_url": "https://belita-skin-match-bot.aiartnikitka93.workers.dev",
+    "catalog_store": "Qdrant Cloud",
+    "catalog_count_verified": 2478,
+    "quality_phase": "LATE_HARDENING",
+    "stage": "Stage 1 Telegram Bot",
+    "notable_live_features": [
+      "questionnaire and persisted skin profile",
+      "full-catalog Qdrant Cloud scan",
+      "broad catalog list mode",
+      "deterministic compare-mode",
+      "links follow-up from last recommendation",
+      "indexed follow-up compare by item number",
+      "composition follow-up after comparison",
+      "profile reset via /reset",
+      "observability minimum counters in Upstash live runtime",
+      "telegram regression suite document",
+      "inline feedback loop with helpful/not relevant/more signals",
+      "persistent Главное меню fallback in reply keyboard",
+      "resilient grammY bootstrap after webhook instability",
+      "duplicate Telegram update dedupe by update_id",
+      "atomic Telegram update reservation with fail-safe fallback reply",
+      "unified face browse-ranking pass for pigmentation/barrier/sensitive/general face creams",
+      "scripted regression audit for core face browse scenarios",
+      "formal promptfoo eval gate for pigmentation/barrier/sensitive/general face creams",
+      "unified beta:gate command plus GitHub Actions quality workflow",
+      "recommendation session refresh on cached replies",
+      "no silent single-item fallback when user explicitly requested indexed comparison",
+      "split recommendation memory across catalog/compare/answer session slots"
+    ]
+  },
+  "updated_at": "2026-04-01 01:47"
 }

@@ -7,7 +7,10 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "regression:audit": "tsx ./scripts/regression-audit.ts",
+    "eval:promptfoo": "npx promptfoo@latest eval -c ./promptfoo/promptfooconfig.yaml -o ./promptfoo/results.json",
+    "beta:gate": "npm run typecheck && npm run regression:audit && npm run eval:promptfoo"
   },
   "dependencies": {
     "@libsql/client": "0.17.2",

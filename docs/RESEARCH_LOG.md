@@ -320,3 +320,47 @@ _Последнее обновление: 2026-03-29 | Роль: P-KNOW Knowledg
 - Для текущего этапа лучший компромисс: хранить исходники в `private GitHub repo`, добавить проприетарный `LICENSE`, а online parsing запускать через `GitHub Actions` по расписанию и вручную.
 - Для donor-friendly режима запускать sync не чаще `1 раза в сутки`, в нечасовой минуте, с сохранением `sleep 1-2s` в самих скриптах.
 - Если full sync начнет упираться в private Actions minutes, следующим шагом будет incremental sync или вынос ingestion в отдельный runner.
+
+## [ТЕМА: Beta-ready hardening ideas from fresh external research]
+_Последнее обновление: 2026-04-01 | Роль: Codex_
+Статус: Актуально
+
+### Что проверено
+- `https://grammy.dev/plugins/conversations`
+- `https://core.telegram.org/bots/webapps`
+- `https://telegrambots.github.io/book/4/webapps.html`
+- `https://developers.cloudflare.com/queues/`
+- `https://developers.cloudflare.com/queues/platform/limits/`
+- `https://developers.cloudflare.com/ai-gateway/`
+- `https://qdrant.tech/documentation/concepts/hybrid-queries/`
+- `https://qdrant.tech/documentation/concepts/filtering/`
+- `https://www.promptfoo.dev/docs/integrations/ci-cd/`
+- `https://github.com/revenkroz/telegram-web-app-bot-example`
+- `https://github.com/Telegram-Mini-Apps/reactjs-template`
+- `https://github.com/yshalsager/telegram-feedback-bot`
+- `https://github.com/donbarbos/telegram-bot-template`
+
+### Ключевые факты
+- `grammY` рекомендует для сложных многошаговых dialog flows использовать `conversations`, а при доступе к внешнему state внутри conversation path оборачивать его в `conversation.external`, чтобы не ломать replay semantics.
+- Telegram Mini Apps можно открывать не только из inline/reply кнопок, но и как `Main Mini App`/menu button; Telegram рекомендует работать через `Telegram.WebApp`, `initData`, theme params и `sendData`, если нужен structured handoff обратно в бота.
+- `Cloudflare Queues` дают retries, delayed delivery и dead-letter queue path, то есть подходят как более надежный buffer между Telegram webhook edge и тяжелой логикой/внешними провайдерами.
+- `Cloudflare AI Gateway` дает centralized AI analytics, caching, rate limiting и provider routing; это особенно полезно, если inference path становится multi-provider и нужен production-grade observability слой.
+- Qdrant официально поддерживает `hybrid queries` и metadata filtering; для нашего проекта это прямой кандидат на следующий шаг после текущего manual reranking, чтобы уменьшить шум по `pigmentation / barrier / sensitive`.
+- `promptfoo` официально поддерживает CI/CD eval gates; это подходит под наш Telegram regression suite лучше, чем чисто ручные smoke-tests.
+- На GitHub уже есть полезные reference-проекты:
+  - `revenkroz/telegram-web-app-bot-example` — минимальный, понятный Mini App launch path;
+  - `Telegram-Mini-Apps/reactjs-template` — современный React/Vite template для Mini App;
+  - `yshalsager/telegram-feedback-bot` — полезен как reference для feedback/admin flow;
+  - `donbarbos/telegram-bot-template` — полезен как reference по аналитике и admin-panel идеям, но его стек не стоит переносить к нам напрямую.
+
+### Практический вывод
+- Самые полезные внешние идеи для нашего проекта сейчас:
+  - ввести `separate session slots`: `last_catalog_session`, `last_compare_session`, `last_answer_session` вместо одной общей recommendation memory;
+  - оформить Telegram regression suite как формальный eval-gate через `promptfoo`;
+  - подготовить `Mini App Lite`, но только как profile/recommendations UI, а не как попытку заменить основной бот раньше времени;
+  - рассмотреть `Cloudflare Queues` как optional reliability layer, если webhook incidents повторятся;
+  - идти к `Qdrant hybrid + metadata filtering`, а не бесконечно лечить ranking только эвристиками в коде.
+- Что не стоит делать прямо сейчас:
+  - не тащить full Mini App раньше закрытия Telegram beta-ready gate;
+  - не переносить wholesale чужие GitHub templates, если они конфликтуют с нашим `Workers + grammY + Qdrant` стеком;
+  - не усложнять runtime `Durable Workflows`/heavy orchestration без повторяемой operational боли.

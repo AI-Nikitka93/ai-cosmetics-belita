@@ -2,17 +2,21 @@
 
 - Цель: довести проект `AI Smart Cosmetics BELITA Recommender` до deploy-ready cloud bot core с безопасным RAG и бесплатным `24/7` serving path.
 - Текущий статус: `IN_PROGRESS`
-- Активный шаг: one-shot workflow переработан в staged sync, новая сборка запушена в GitHub и run `23705627347` уже стартовал по схеме `scrape_catalog -> enrich_catalog -> build_and_index`.
+- Активный шаг: `Stage 1 Telegram Bot` остается в late quality-hardening / pre-beta phase; cloud runtime живой, webhook после incident-fix дополнительно усилен атомарным update reservation и fail-safe fallback на уровне апдейта, follow-up memory уже разнесена на отдельные `catalog / compare / answer` session slots, face browse quality теперь прикрыта scripted regression-аудитом и formal eval gate через `promptfoo`, а единый `beta:gate` уже собирает эти проверки в один verdict.
+- Операционный статус: transient webhook incident `2026-04-01 00:02-00:06 +03:00` диагностирован; `health=200`, controlled `/webhook` smoke проходит, stuck Telegram updates вручную replayed, `pending_update_count` снова `0`.
 - Блокеры:
-  - нет критических блокеров для локального knowledge prototype;
-  - до production нужен отдельный legal review по РБ;
-  - среди checked free online backends нет варианта с сильной production-grade `24/7` гарантией без рисков pause / inactivity cleanup / quota ceilings.
-  - текущий `sqlite.db` содержит только `1` продукт после smoke-ingestion, поэтому рекомендации пока ограничены и требуют полного прогона каталога.
-  - исходный код теперь публично видим на GitHub, поэтому фактическая защита кода ослаблена до юридической рамки `LICENSE`.
-  - текущий workflow `catalog-sync` слишком длинный для одного GitHub job: `raw_catalog.json` собирается полностью, но `Enrich INCI` не успевает закончиться в пределах `180` минут.
-  - parser сейчас захватывает нерелевантные для бота разделы каталога (`sumki`, `gift-wrap`, `sredstva-dlya-stirki` и т.д.), что увеличивает время и шум в данных.
-- Следующий шаг: дождаться завершения run `23705627347`, проверить artifacts и факт прохождения до `Load SQLite` и `Index to Qdrant Cloud`.
-- Следующий шаг: после staged sync и повторного cloud reindex заново проверить реальные рекомендации бота в Telegram.
+- до production нужен отдельный legal review по РБ для парсинга, пользовательских данных и коммуникации на границе косметика / medical;
+- среди free-tier онлайн-стеков все еще нет сильной production-grade гарантии `24/7` без рисков квот, пауз и provider-specific ограничений;
+- качество ranking после единого pass, scripted regression-аудита и formal promptfoo gate стало заметно лучше для `sensitive / barrier / general face creams`, а `pigmentation` уже проходит локальный quality gate, но все еще требует живого Telegram regression-check;
+- compare/list режимы и continuation UX уже работают заметно лучше, но все еще требуют regression-checks и более системной quality-метрики;
+- observability уже стала лучше базового уровня, но до нормального quality dashboard все еще далеко: нет полноценного слоя по ranking regressions, duplicate-update incidents и session-level quality traces;
+- исходный код остается публично доступным на GitHub, поэтому защита кода по-прежнему в основном юридическая (`LICENSE`);
+- локальный `sqlite.db` по-прежнему не отражает реальное облачное состояние и не годится как главная truth-source для текущего live-бота;
+- parser и sync-path все еще нужно чистить от нерелевантных категорий и drift между cloud index и source catalog.
+- Следующий шаг: прогнать живой Telegram regression уже поверх нового split-memory path, formal promptfoo gate и единого `beta:gate`, а затем честно принять решение `beta-ready / still hardening`.
+- Следующий шаг: подготовить следующий ranking-layer на `Qdrant hybrid + metadata filtering`, чтобы уменьшить зависимость от чисто ручных эвристик.
+- Следующий шаг: после следующего push активировать новый workflow `telegram-quality-gate.yml` в GitHub Actions и прогнать его уже на remote-репозитории.
+- Следующий шаг: отдельно проверить в Telegram, что duplicate replies после временных сбоев и параллельных retry больше не воспроизводятся после атомарного update reservation.
 - Артефакты:
   - `docs/PRD_BELITA_BOT.md`
   - `ARCHITECTURE.md`
@@ -32,6 +36,10 @@
   - `cloud-bot/src/index.ts`
   - `cloud-bot/src/bot.ts`
   - `cloud-bot/src/adapters/`
+  - `cloud-bot/scripts/regression-audit.ts`
+  - `.github/workflows/telegram-quality-gate.yml`
+  - `docs/BETA_READY_GATE.md`
+  - `cloud-bot/promptfoo/`
   - `cloud-bot/DEPLOY.md`
   - `docs/BOT_BRANDING.md`
   - `docs/PROJECT_MAP.md`
@@ -45,5 +53,55 @@
   - `README.md`
   - `sqlite.db`
   - `qdrant_db`
+- Live operational notes:
+  - Cloud Worker production URL: `https://belita-skin-match-bot.aiartnikitka93.workers.dev`
+  - Current cloud catalog source of truth: `Qdrant Cloud`
+  - Qdrant Cloud collection size verified during live audit: `2478` items
+  - Recent live fixes already shipped:
+    - full-catalog cloud scan instead of narrow candidate window;
+    - deterministic product links;
+    - safe hard-guard for intimate / medical requests;
+    - questionnaire + profile persistence;
+    - compare-mode for explicit `сравни X и Y`;
+    - compact catalog list mode for `top/list/rating` requests;
+    - continuation handling for short follow-up prompts like `напиши весь список`;
+    - broad catalog default expanded from narrow `top 3` to wider catalog slice for broad queries;
+    - recommendation session memory for follow-up prompts like `ссылки дай`;
+    - indexed continuation flows like `сравни 1 и 3` and `разбери 1 и 2`;
+    - composition follow-up after the latest selected comparison;
+    - profile reset flow via `/reset` and menu action `Стереть профиль`;
+    - observability minimum shipped in live runtime: bot metrics for `unsafe_intent_blocked`, `empty_result`, `followup_links_miss`, `followup_compare_miss`, `qdrant_retrieval_failure`, `knowledge_failure`;
+    - regression artifact added for manual quality gate: `docs/TELEGRAM_REGRESSION_SUITE.md`;
+    - feedback loop shipped in live runtime: inline feedback actions `Подошло / Не по теме / Еще варианты` with feedback metrics and persisted feedback events in Upstash;
+    - fallback UX for Telegram commands strengthened by persistent `Главное меню` action in the main keyboard;
+    - bootstrap for `grammY` runtime made more resilient after live webhook instability;
+    - duplicate Telegram update dedupe added via cached `update_id`, so transient webhook retries should no longer produce double replies.
+    - unified face browse ranking pass shipped for `pigmentation / barrier / sensitive dry face / general face creams`: stricter specialist filtering, better pool accumulation, cleaner decorative/daily cream separation and stronger dry-sensitive barrier preference.
+    - atomic Telegram update reservation plus fail-safe fallback reply shipped to reduce queue wedging after transient runtime failures;
+    - scripted live regression audit for face browse scenarios shipped as `npm run regression:audit`.
+    - formal promptfoo eval gate shipped as `npm run eval:promptfoo` with live Qdrant-backed checks for `pigmentation / barrier / sensitive / general face creams`.
+    - unified local beta-ready gate shipped as `npm run beta:gate`; matching CI workflow `telegram-quality-gate.yml` added for repeatable quality checks in GitHub Actions.
+    - GitHub repo secrets `QDRANT_URL` и `QDRANT_KEY` уже синхронизированы через `gh`, так что CI-сторона quality gate подготовлена; workflow останется запустить после push workflow-файла в remote.
+    - cached replies теперь тоже обновляют recommendation session, поэтому `ссылки дай` и индексные follow-up вроде `сравни 1 и 3` больше не должны цепляться к старому compare-session;
+    - если пользователь явно запросил сравнение двух позиций, а в текущем session only one index valid, бот теперь не деградирует молча в разбор одного товара.
+    - recommendation memory split shipped: `catalog`, `compare` и `answer` session slots теперь живут раздельно и выбираются по типу follow-up.
+- Фактическая стадия продукта:
+  - `Stage 1: Telegram Bot`
+  - состояние: `live MVP + quality-hardening`
+  - готовность: очень близко к `beta-ready`, но еще не закрыты живой Telegram regression gate и observability/dashboard слой
 - Обновлено: `2026-03-29 02:50`
 - Обновлено: `2026-03-29 12:05`
+- Обновлено: `2026-03-31 00:46`
+- Обновлено: `2026-03-31 01:35`
+- Обновлено: `2026-03-31 01:40`
+- Обновлено: `2026-03-31 01:43`
+- Обновлено: `2026-03-31 02:42`
+- Обновлено: `2026-03-31 22:39`
+- Обновлено: `2026-03-31 23:24`
+- Обновлено: `2026-04-01 00:08`
+- Обновлено: `2026-04-01 00:21`
+- Обновлено: `2026-04-01 00:31`
+- Обновлено: `2026-04-01 00:47`
+- Обновлено: `2026-04-01 00:52`
+- Обновлено: `2026-04-01 01:06`
+- Обновлено: `2026-04-01 01:47`

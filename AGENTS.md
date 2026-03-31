@@ -36,6 +36,9 @@
   - `cd "cloud-bot"`
   - `npm install`
   - `npm run typecheck`
+  - `npm run regression:audit`
+  - `npm run eval:promptfoo`
+  - `npm run beta:gate`
   - `npx wrangler deploy --dry-run`
 - Online sync:
   - workflow `.github/workflows/catalog-sync.yml`

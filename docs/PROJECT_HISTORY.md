@@ -167,3 +167,73 @@
 Изменены файлы: .gitignore, .github/workflows/catalog-sync.yml, README.md, scripts/catalog_scraper.py, docs/DECISIONS.md, docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
 Результат/доказательство: `python -m py_compile scripts/common.py scripts/catalog_scraper.py scripts/inci_enricher.py scripts/load_to_sqlite.py scripts/index_to_qdrant.py`; `git push origin main`; `gh workflow run catalog-sync.yml --repo AI-Nikitka93/ai-cosmetics-belita --ref main`; `gh run view 23705627347 --json status,conclusion,jobs,url` -> job `scrape_catalog` стартовал по новой схеме.
 Следующий шаг: Дождаться завершения run `23705627347` и проверить, что staged pipeline дошел до `build_and_index`.
+
+Дата и время: 2026-03-31 22:39
+Роль: Codex
+Сделано: Сверена живая стадия проекта с `PROJECT_MAP` и синхронизирована память проекта под реальное late quality-hardening состояние Telegram MVP. Зафиксированы новые live-факты: inline feedback на сообщении, fallback `Главное меню`, более устойчивый bootstrap webhook runtime и dedupe duplicate Telegram updates по `update_id`.
+Изменены файлы: docs/STATE.md, docs/state.json, docs/EXEC_PLAN.md, docs/PROJECT_HISTORY.md
+Результат/доказательство: сверка `docs/PROJECT_MAP.md`, `docs/STATE.md`, `docs/EXEC_PLAN.md`, `docs/state.json`; свежие live runtime fixes уже задеплоены в Worker и health endpoint отвечает `200`.
+Следующий шаг: продолжить quality sprint по face browse ranking и затем закрывать beta-ready quality gate для Stage 1.
+
+Дата и время: 2026-03-31 23:24
+Роль: Codex
+Сделано: Проведен единый quality-pass по face browse ranking. В `bot.ts` и `qdrant-client.ts` ужесточены правила для `pigmentation / barrier / sensitive dry face / general face creams`: добавена более строгая specialist-фильтрация, накопительный shortlist вместо ранних `return`, более чистое разделение декоративных face-продуктов и daily creams, усилен приоритет dry/sensitive barrier-кремов. Изменения выкачены в live Worker.
+Изменены файлы: cloud-bot/src/bot.ts, cloud-bot/src/adapters/qdrant/qdrant-client.ts, docs/STATE.md, docs/state.json, docs/EXEC_PLAN.md, docs/PROJECT_HISTORY.md
+Результат/доказательство: `npm run typecheck`; локальный live-shortlist audit через `npx tsx -` по запросам `что взять у Belita для пигментации`, `подбери 5 кремов Belita для восстановления барьера`, `что у Belita есть для чувствительной сухой кожи лица`, `Напиши 10 кремов для лица и оценку по 10 балльной системе каждого из них`; `npx wrangler deploy`; `Invoke-WebRequest .../health` -> `200`; Worker version `f1c6b1c0-5915-4558-a5ea-4d36bd640a6d`.
+Следующий шаг: прогнать живой regression suite в Telegram, особенно по `pigmentation`, и затем закрывать beta-ready quality gate.
+
+Дата и время: 2026-04-01 00:08
+Роль: Codex
+Сделано: Проведена incident-диагностика после жалобы `бот вновь не работает`. Подтверждено, что `health` живой, Telegram webhook был настроен корректно, но в очереди висели 2 pending updates с последним `503 Service Unavailable`. Временно снят webhook для чтения stuck updates, после чего оба проблемных апдейта были вручную replayed в `/webhook`; controlled `/start` smoke также прошел. Очередь Telegram очищена до `pending_update_count = 0`.
+Изменены файлы: docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
+Результат/доказательство: `Invoke-WebRequest .../health` -> `200`; `getWebhookInfo` показал `pending_update_count=2` и `last_error_message=503`; `deleteWebhook` -> `getUpdates` вернул stuck updates `592110095` и `592110096`; ручной replay этих updates в `/webhook` дал `200 {"ok":true}`; итоговый `getWebhookInfo` -> `pending_update_count=0`.
+Следующий шаг: попросить пользователя снова прислать живой запрос в Telegram и, если 503 повторится, уже ловить конкретную runtime-ветку через focused logging по failing update type.
+
+Дата и время: 2026-04-01 00:21
+Роль: Codex
+Сделано: Проведен единый beta-ready quality-pass по Telegram bot. Усилен webhook update handling: добавлен атомарный reservation для `update_id` через Upstash и fail-safe fallback reply при необработанном update error, чтобы transient runtime failures меньше клинили очередь Telegram. Отдельно добит face browse quality-pass: в `pigmentation` введен first-line anti-pigment слой, в classifier для eye-area добавлен захват `век`, а для повторяемой проверки создан scripted regression audit по `pigmentation / barrier / sensitive / general face creams`.
+Изменены файлы: cloud-bot/src/adapters/upstash/cache-store.ts, cloud-bot/src/bot.ts, cloud-bot/src/adapters/qdrant/qdrant-client.ts, cloud-bot/package.json, cloud-bot/scripts/regression-audit.ts, docs/STATE.md, docs/state.json, docs/EXEC_PLAN.md, docs/DECISIONS.md, docs/PROJECT_HISTORY.md
+Результат/доказательство: `npm run typecheck`; `npm run regression:audit` -> `PASS` по всем 4 face scenarios; `rg -n "TODO|placeholder|insert code" cloud-bot/src cloud-bot/scripts` -> без совпадений; `npx wrangler deploy` -> Worker version `547ed1ed-f295-4e0e-a6f9-eeeaa28b5ca3`; `Invoke-WebRequest .../health` -> `200`.
+Следующий шаг: прогнать короткий живой Telegram regression suite и затем принять честное решение `beta-ready / still hardening` уже по UI-результату, а не только по локальному audit.
+
+Дата и время: 2026-04-01 00:31
+Роль: Codex
+Сделано: Разобран живой UX-баг по follow-up памяти. Найдена корневая причина: при cached reply бот не обновлял recommendation session, поэтому `ссылки дай` и индексные follow-up могли цепляться к старому compare-session. Исправлено: cached branch теперь тоже делает retrieval и refresh session-memory, а явный запрос вида `сравни 1 и 3` больше не должен молча деградировать в разбор одной позиции, если второй индекс отсутствует в текущей session. Пакет сразу выкачен в live Worker.
+Изменены файлы: cloud-bot/src/bot.ts, docs/STATE.md, docs/state.json, docs/EXEC_PLAN.md, docs/PROJECT_HISTORY.md
+Результат/доказательство: синтетический session-check через `handleTelegramUpdate` + Upstash показал, что после повторного `что для рук есть` session остается `catalog` с 6 hand products, а после `сравни 1 и 3` session корректно переключается в `compare` с 2 товарами (`КРЕМ-МАСЛО...`, `Крем для рук МИЛЕНА...`); `npm run typecheck`; `npx wrangler deploy` -> Worker version `e5aaf1fc-3b11-4fc8-9dde-ff2282c819ab`; `Invoke-WebRequest .../health` -> `200`.
+Следующий шаг: попросить пользователя повторить руками Telegram-сценарий `что для рук есть -> ссылки дай -> сравни 1 и 3 -> Сравни и напиши полные составы` и затем уже решать, достаточно ли этого для `beta-ready`.
+
+Дата и время: 2026-04-01 00:47
+Роль: Codex
+Сделано: Проведен внешний product/engineering research под следующий этап Telegram hardening. На базе official docs и живых reference-проектов собран shortlist практических идей: split memory layer вместо одной recommendation session, `promptfoo` как formal eval gate, `Qdrant hybrid + metadata filtering` как следующий ranking-layer, `Cloudflare Queues` как optional reliability upgrade и `Mini App Lite` только как companion UI, а не ранняя замена бота.
+Изменены файлы: docs/RESEARCH_LOG.md, docs/DECISIONS.md, docs/EXEC_PLAN.md, docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
+Результат/доказательство: исследованы official/reference sources по `grammY conversations`, `Telegram Mini Apps`, `Cloudflare Queues`, `Cloudflare AI Gateway`, `Qdrant hybrid queries/filtering`, `promptfoo CI/CD`, а также reference repos `revenkroz/telegram-web-app-bot-example`, `Telegram-Mini-Apps/reactjs-template`, `yshalsager/telegram-feedback-bot`, `donbarbos/telegram-bot-template`.
+Следующий шаг: идти не в новый UI, а в системную стабилизацию — сначала split memory layer, потом eval gate, потом следующий ranking-layer.
+
+Дата и время: 2026-04-01 00:52
+Роль: Codex
+Сделано: Реализован `P0` split memory layer для Telegram follow-up UX. Recommendation memory разнесена на отдельные session slots: `catalog`, `compare`, `answer`, при этом сохранен backward-compatible fallback на legacy session key. Чтение session теперь идет по типу follow-up: `ссылки` предпочитают `catalog`, composition follow-up — `compare`, indexed compare сначала смотрит в `catalog`, а затем уже в `compare/answer`.
+Изменены файлы: cloud-bot/src/bot.ts, docs/STATE.md, docs/state.json, docs/EXEC_PLAN.md, docs/DECISIONS.md, docs/PROJECT_HISTORY.md
+Результат/доказательство: `npm run typecheck`; `npm run regression:audit` -> `PASS`; локальная session-simulation через `handleTelegramUpdate` + Upstash показала раздельное хранение: после `что для рук есть` заполнен `catalog`, после `сравни 1 и 3` заполнен `compare`, при этом `catalog` session не теряется; `npx wrangler deploy` -> Worker version `ca1b2c79-83f9-4aef-a30d-be738bac4d91`; `Invoke-WebRequest .../health` -> `200`.
+Следующий шаг: прогнать живой Telegram regression suite на split-memory path и затем переходить к formal eval gate через `promptfoo`.
+
+Дата и время: 2026-04-01 01:06
+Роль: Codex
+Сделано: Формализован Telegram eval gate через `promptfoo` по мартовским official best practices. Добавлены custom provider с `tsx` runner на production retrieval-коде, сценарные assertions для `pigmentation / barrier / sensitive / general face creams`, promptfoo config и отдельная команда `npm run eval:promptfoo`. Заодно расширен `tsconfig` на eval-runner и обновлены команды в `AGENTS.md`.
+Изменены файлы: AGENTS.md, cloud-bot/.gitignore, cloud-bot/tsconfig.json, cloud-bot/promptfoo/promptfooconfig.yaml, cloud-bot/promptfoo/assertions/ranking-scenario-check.mjs, cloud-bot/promptfoo/providers/qdrant-search-provider.mjs, cloud-bot/promptfoo/providers/qdrant-search-runner.ts, cloud-bot/scripts/regression-audit.ts, docs/STATE.md, docs/state.json, docs/EXEC_PLAN.md, docs/DECISIONS.md, docs/PROJECT_HISTORY.md
+Результат/доказательство: `npm run typecheck`; `npm run eval:promptfoo` -> `4/4 passed`; `rg -n "TODO|placeholder|insert code" cloud-bot/src cloud-bot/scripts cloud-bot/promptfoo` -> без совпадений.
+Следующий шаг: прогнать живой Telegram regression поверх нового promptfoo gate и затем уже принимать решение `beta-ready / still hardening`.
+
+Дата и время: 2026-04-01 01:47
+Роль: Codex
+Сделано: Собран operational beta-ready layer. Добавлена единая команда `npm run beta:gate`, которая объединяет `typecheck + regression:audit + eval:promptfoo`, создан GitHub Actions workflow `telegram-quality-gate.yml` с подготовкой минимального `.dev.vars` из секретов Qdrant, добавлен документ `BETA_READY_GATE.md` с `GO / NO-GO` критериями и ручным Telegram final gate.
+Изменены файлы: AGENTS.md, cloud-bot/package.json, .github/workflows/telegram-quality-gate.yml, docs/BETA_READY_GATE.md, docs/STATE.md, docs/state.json, docs/EXEC_PLAN.md, docs/DECISIONS.md, docs/PROJECT_HISTORY.md
+Результат/доказательство: `npm run beta:gate` -> полностью зеленый (`typecheck PASS`, `regression:audit PASS`, `eval:promptfoo 4/4 PASS`); workflow file создан; package-lock присутствует, значит `setup-node` cache path валиден.
+Следующий шаг: завести GitHub secrets для workflow, затем прогнать короткий живой Telegram regression и принять финальный `beta-ready / still hardening` verdict.
+
+Дата и время: 2026-04-01 01:47
+Роль: Codex
+Сделано: GitHub operational side для нового quality gate подготовлена без участия пользователя. Через `gh` синхронизированы repo secrets `QDRANT_URL` и `QDRANT_KEY` в `AI-Nikitka93/ai-cosmetics-belita`. Подтверждено, что auth живой и secrets уже видны в репозитории; теперь workflow можно будет запускать сразу после push соответствующего файла в remote.
+Изменены файлы: docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
+Результат/доказательство: `gh auth status` -> активный account `AI-Nikitka93`; `gh secret list --repo AI-Nikitka93/ai-cosmetics-belita` -> видны `QDRANT_URL`, `QDRANT_KEY`.
+Следующий шаг: после push workflow-файла прогнать `telegram-quality-gate` в GitHub Actions и затем закрывать живой Telegram final gate.

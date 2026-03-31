@@ -12,6 +12,11 @@
 - Stage 3: Web
 - Stage 4: Browser Extension
 
+## Текущая фактическая стадия
+- Активная стадия: `Stage 1: Telegram Bot`
+- Реальный этап: `live MVP + quality-hardening`
+- Текущий фокус: довести Telegram-бот до `beta-ready` по качеству ranking, catalog UX, continuation flow и safety behavior
+
 ## Основные модули продукта
 - Пользовательский опросник и профиль кожи
 - Каталог продуктов Belita/Vitex
@@ -64,6 +69,22 @@
   - `.github/workflows/catalog-sync.yml`
   - `docs/ONLINE_PARSING_GITHUB_PLAN.md`
   - `LICENSE`
+
+## Что уже реально достигнуто на Stage 1
+- Telegram bot работает в live cloud runtime на `Cloudflare Workers`
+- Каталоговый поиск идет по `Qdrant Cloud` и использует полный cloud-catalog scan вместо узкого окна кандидатов
+- Реализованы questionnaire + профиль кожи + persistence
+- Добавлены safety-guardrails для medical / intimate запросов
+- Реализованы compare/list режимы для каталоговых и точечных запросов
+- Реализованы continuation-сценарии:
+  - `напиши весь список`
+  - `ссылки дай`
+  - `сравни 1 и 3`
+  - `разбери 1 и 2`
+  - follow-up по полным составам после последнего сравнения
+- Добавлен сброс пользовательского профиля через `/reset` и кнопку `Стереть профиль`
+- Broad catalog UX улучшен для веток `тело`, `волосы`, `руки`, `ноги`, `лицо`
+- Текущий quality sprint уже идет на реальных Telegram smoke-tests, а не только на локальных проверках
 
 ## Главные риски
 - Смешение косметической рекомендации с медицинской консультацией

@@ -9,7 +9,7 @@
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "types": ["./worker-configuration.d.ts"]
+    "types": ["./worker-configuration.d.ts", "node"]
   },
-  "include": ["src/**/*.ts", "worker-configuration.d.ts"]
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "promptfoo/providers/**/*.ts", "worker-configuration.d.ts"]
 }

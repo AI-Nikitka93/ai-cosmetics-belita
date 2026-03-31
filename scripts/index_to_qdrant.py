@@ -23,6 +23,24 @@ from domain.ingredients import analyze_product  # noqa: E402
 DEFAULT_DB_PATH = Path("sqlite.db")
 DEFAULT_QDRANT_PATH = Path("qdrant_db")
 DEFAULT_COLLECTION = "product_knowledge"
+PAYLOAD_INDEXES: tuple[tuple[str, models.PayloadSchemaType], ...] = (
+    ("brand", models.PayloadSchemaType.KEYWORD),
+    ("category", models.PayloadSchemaType.KEYWORD),
+    ("skin_types", models.PayloadSchemaType.KEYWORD),
+    ("concerns", models.PayloadSchemaType.KEYWORD),
+    ("fit_tags", models.PayloadSchemaType.KEYWORD),
+    ("flags", models.PayloadSchemaType.KEYWORD),
+    ("is_fragrance_free", models.PayloadSchemaType.BOOL),
+    ("has_fragrance", models.PayloadSchemaType.BOOL),
+    ("has_acids", models.PayloadSchemaType.BOOL),
+    ("has_retinoid", models.PayloadSchemaType.BOOL),
+    ("has_drying_alcohol", models.PayloadSchemaType.BOOL),
+    ("has_barrier_support", models.PayloadSchemaType.BOOL),
+    ("has_soothing_agents", models.PayloadSchemaType.BOOL),
+    ("acne_fit", models.PayloadSchemaType.BOOL),
+    ("gentle_fit", models.PayloadSchemaType.BOOL),
+    ("price_amount", models.PayloadSchemaType.FLOAT),
+)
 
 
 @dataclass
@@ -223,6 +241,20 @@ def ensure_collection(client: QdrantClient, collection_name: str, vector_size: i
     )
 
 
+def ensure_payload_indexes(client: QdrantClient, collection_name: str) -> None:
+    for field_name, schema in PAYLOAD_INDEXES:
+        try:
+            client.create_payload_index(
+                collection_name=collection_name,
+                field_name=field_name,
+                field_schema=schema,
+                wait=True,
+            )
+            logging.info("Ensured payload index for %s", field_name)
+        except Exception as exc:
+            logging.warning("Failed to ensure payload index for %s: %s", field_name, exc)
+
+
 def batched(items: Iterable[models.PointStruct], batch_size: int) -> Iterable[list[models.PointStruct]]:
     batch: list[models.PointStruct] = []
     for item in items:
@@ -278,6 +310,7 @@ def main() -> None:
         client = QdrantClient(path=str(qdrant_path))
     try:
         ensure_collection(client, args.collection, vector_size, recreate=args.recreate)
+        ensure_payload_indexes(client, args.collection)
 
         points = (
             models.PointStruct(id=point_id, vector=vector, payload=payload)

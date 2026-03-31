@@ -20,4 +20,18 @@ export class UpstashCacheStore {
   async setJson<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
     await this.redis.set(key, value, { ex: ttlSeconds });
   }
+
+  async setIfAbsentJson<T>(key: string, value: T, ttlSeconds: number): Promise<boolean> {
+    const result = await this.redis.set(key, value, { ex: ttlSeconds, nx: true });
+    return result === "OK";
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.redis.del(key);
+  }
+
+  async increment(key: string, amount = 1): Promise<number> {
+    const value = await this.redis.incrby(key, amount);
+    return Number(value ?? 0);
+  }
 }
