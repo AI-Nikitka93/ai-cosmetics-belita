@@ -244,3 +244,10 @@
 Изменены файлы: docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
 Результат/доказательство: `npx wrangler deploy` -> Worker version `b0605089-bdbf-47a3-888d-e9a2ab9369e3`; `Invoke-WebRequest .../health` -> `200`; `git push origin main`; `gh workflow run \"Telegram Quality Gate\"`; `gh run watch 23823528266 --repo AI-Nikitka93/ai-cosmetics-belita` -> success.
 Следующий шаг: пройти только финальный живой Telegram UI regression и затем вынести итоговый `beta-ready / still hardening` verdict.
+
+Дата и время: 2026-04-01 02:21
+Роль: Codex
+Сделано: Разобран новый инцидент `бот виснет`. Через synthetic webhook smoke найден intermittent cold-path crash на запросе `что взять у Belita для пигментации`: один из прогонов отдал Worker `1102`. Причина локализована в тяжелом non-vector full-catalog ranking без раннего candidate pruning. В `qdrant-client.ts` добавлен pre-ranking candidate pool по scope/intent для cold path, после чего quality gates остались зелеными, а новый live Worker прошел cold synthetic smoke по `пигментации` и `sensitive dry face` без ошибки.
+Изменены файлы: cloud-bot/src/adapters/qdrant/qdrant-client.ts, docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
+Результат/доказательство: до фикса synthetic `что взять у Belita для пигментации` дал `error code: 1102`; после фикса `npm run typecheck`, `npm run regression:audit`, `npm run eval:promptfoo` -> PASS; `npx wrangler deploy` -> Worker version `d3d3f1c1-c6bf-4073-ab87-3ff21aaaab4e`; post-deploy synthetic smoke: `пигментация` -> `200` за `~3231ms`, `sensitive dry face` -> `200` за `~6350ms`.
+Следующий шаг: попросить живой Telegram retest именно на `пигментации` и убедиться, что пользовательский hang больше не воспроизводится.

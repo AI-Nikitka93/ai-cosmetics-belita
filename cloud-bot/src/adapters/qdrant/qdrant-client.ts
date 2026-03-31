@@ -1056,6 +1056,97 @@ function rankProducts(products: ProductMatch[], input: QdrantSearchInput, limit:
   return ranked.slice(0, limit);
 }
 
+function buildCandidatePool(products: ProductMatch[], input: QdrantSearchInput): ProductMatch[] {
+  const normalizedQuery = normalizeSearchText(input.queryText);
+  const requestedScopes = detectRequestedScopes(input.queryText);
+  const isFaceQuery = isFaceCareQuery(input.queryText);
+  const isPigmentQuery = isPigmentationQuery(input.queryText);
+  const isBarrierQuery = /(барьер|восстанов|атоп|раздраж|реактив|чувств)/.test(normalizedQuery) && /(крем|лиц|кож)/.test(normalizedQuery);
+  const isSensitiveQuery = /(лиц|кож)/.test(normalizedQuery) && /(чувств|сух|барьер|атоп|раздраж|реактив)/.test(normalizedQuery);
+  const isGenericCreamQuery = isGenericCatalogCreamListIntent(input.queryText);
+
+  let candidatePool = products;
+
+  if (isFaceQuery) {
+    const faceProducts = candidatePool.filter(isFaceCareProduct);
+    if (faceProducts.length > 0) {
+      candidatePool = faceProducts;
+    }
+  }
+
+  if (requestedScopes.includes("hands")) {
+    const handsProducts = candidatePool.filter((product) => detectProductScopes(product).includes("hands"));
+    if (handsProducts.length > 0) {
+      candidatePool = handsProducts;
+    }
+  } else if (requestedScopes.includes("hair")) {
+    const hairProducts = candidatePool.filter((product) => detectProductScopes(product).includes("hair"));
+    if (hairProducts.length > 0) {
+      candidatePool = hairProducts;
+    }
+  } else if (requestedScopes.includes("body")) {
+    const bodyProducts = candidatePool.filter((product) => detectProductScopes(product).includes("body"));
+    if (bodyProducts.length > 0) {
+      candidatePool = bodyProducts;
+    }
+  } else if (requestedScopes.includes("feet")) {
+    const feetProducts = candidatePool.filter((product) => detectProductScopes(product).includes("feet"));
+    if (feetProducts.length > 0) {
+      candidatePool = feetProducts;
+    }
+  } else if (requestedScopes.includes("baby")) {
+    const babyProducts = candidatePool.filter(isBabyCareProduct);
+    if (babyProducts.length > 0) {
+      candidatePool = babyProducts;
+    }
+  }
+
+  if (isPigmentQuery) {
+    const pigmentPool = candidatePool.filter(
+      (product) =>
+        !isDecorativeFaceProduct(product) &&
+        !isCleanserProduct(product) &&
+        !isSprayProduct(product) &&
+        !isEyeAreaProduct(product) &&
+        !isHighlightProduct(product)
+    );
+    if (pigmentPool.length > 0) {
+      candidatePool = pigmentPool;
+    }
+  } else if (isBarrierQuery || isSensitiveQuery || isGenericCreamQuery) {
+    const creamPool = candidatePool.filter(
+      (product) =>
+        isStrictCreamProduct(product) &&
+        !isDecorativeFaceProduct(product) &&
+        !isCleanserProduct(product) &&
+        !isSprayProduct(product) &&
+        !isEyeAreaProduct(product)
+    );
+    if (creamPool.length > 0) {
+      candidatePool = creamPool;
+    }
+  }
+
+  const maxCandidates = isPigmentQuery || isBarrierQuery || isSensitiveQuery || isGenericCreamQuery ? 400 : 600;
+  if (candidatePool.length <= maxCandidates) {
+    return candidatePool;
+  }
+
+  const coarseRanked = candidatePool
+    .map((product) => ({
+      product,
+      score:
+        computeScopeScore(product, input.queryText) +
+        computeIntentScore(product, input.queryText) +
+        computeLexicalScore(product, input.queryText)
+    }))
+    .sort((left, right) => right.score - left.score)
+    .slice(0, maxCandidates)
+    .map((item) => item.product);
+
+  return coarseRanked.length > 0 ? coarseRanked : candidatePool.slice(0, maxCandidates);
+}
+
 export class QdrantClientAdapter {
   private static readonly FULL_SCAN_PAGE_SIZE = 256;
   private static readonly FULL_SCAN_MAX_POINTS = 5000;
@@ -1106,7 +1197,8 @@ export class QdrantClientAdapter {
     }
 
     const products = await this.getCatalogSnapshot();
-    const ranked = rankProducts(products, input, Math.max(limit * 3, 12));
+    const candidatePool = buildCandidatePool(products, input);
+    const ranked = rankProducts(candidatePool, input, Math.max(limit * 3, 12));
     return ranked.filter((product) => product.score > 0).slice(0, limit);
   }
 

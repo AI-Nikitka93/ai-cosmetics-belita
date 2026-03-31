@@ -1,9 +1,9 @@
 {
   "current_goal": "Довести Telegram MVP до deploy-ready cloud bot core с безопасным RAG и бесплатным 24/7 serving path",
-  "current_task": "Live Telegram cloud bot находится в late quality-hardening / pre-beta: unified face-ranking pass уже выкачен, face regression audit формализован скриптом, formal promptfoo eval gate уже добавлен, единый beta:gate уже собран, webhook update handling усилен атомарным reservation + fail-safe fallback, recommendation memory уже split на catalog/compare/answer slots, а главный фокус — живой Telegram regression gate, observability и beta-ready stabilization",
+  "current_task": "Live Telegram cloud bot находится в late quality-hardening / pre-beta: unified face-ranking pass уже выкачен, face regression audit формализован скриптом, formal promptfoo eval gate уже добавлен, единый beta:gate уже собран, webhook update handling усилен атомарным reservation + fail-safe fallback, recommendation memory уже split на catalog/compare/answer slots, а отдельный cold-path hang на pigmentation уже закрыт candidate-pool optimization; главный фокус теперь — живой Telegram regression gate, observability и beta-ready stabilization",
   "status": "IN_PROGRESS",
-  "active_step": "Stage 1 Telegram Bot live в Telegram; cloud runtime и webhook восстановлены, update processing резервируется атомарно, fail-safe fallback уже задеплоен, recommendation memory split на catalog/compare/answer slots уже выкачен, scripted regression audit, formal promptfoo eval gate, единый beta:gate и remote GitHub quality workflow уже есть, а следующий фокус — живой Telegram regression suite и beta-ready quality gate",
-  "next_step": "Прогнать живой Telegram regression suite поверх уже зеленых local/remote quality gates, затем принять честное решение beta-ready или продолжать hardening",
+  "active_step": "Stage 1 Telegram Bot live в Telegram; cloud runtime и webhook восстановлены, update processing резервируется атомарно, fail-safe fallback уже задеплоен, recommendation memory split на catalog/compare/answer slots уже выкачен, scripted regression audit, formal promptfoo eval gate, единый beta:gate и remote GitHub quality workflow уже есть, а cold-path 1102 hang на pigmentation уже снят candidate-pool optimization; следующий фокус — живой Telegram regression suite и beta-ready quality gate",
+  "next_step": "Прогнать живой Telegram regression suite поверх уже зеленых local/remote quality gates и отдельно перепроверить pigmentation после cold-path фикса, затем принять честное решение beta-ready или продолжать hardening",
   "blockers": [
     "До production-недрения нужен отдельный legal review по РБ для парсинга, UGC и обработки пользовательских данных",
     "Среди checked free online backends нет варианта с сильной production-grade 24/7 гарантией без рисков pause, inactivity cleanup или quota ceilings",
@@ -89,5 +89,5 @@
       "split recommendation memory across catalog/compare/answer session slots"
     ]
   },
-  "updated_at": "2026-04-01 02:05"
+  "updated_at": "2026-04-01 02:21"
 }
