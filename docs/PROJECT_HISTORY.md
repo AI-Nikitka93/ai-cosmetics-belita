@@ -251,3 +251,10 @@
 Изменены файлы: cloud-bot/src/adapters/qdrant/qdrant-client.ts, docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
 Результат/доказательство: до фикса synthetic `что взять у Belita для пигментации` дал `error code: 1102`; после фикса `npm run typecheck`, `npm run regression:audit`, `npm run eval:promptfoo` -> PASS; `npx wrangler deploy` -> Worker version `d3d3f1c1-c6bf-4073-ab87-3ff21aaaab4e`; post-deploy synthetic smoke: `пигментация` -> `200` за `~3231ms`, `sensitive dry face` -> `200` за `~6350ms`.
 Следующий шаг: попросить живой Telegram retest именно на `пигментации` и убедиться, что пользовательский hang больше не воспроизводится.
+
+Дата и время: 2026-04-01 12:27
+Роль: Codex
+Сделано: Добавлен anti-timeout слой на knowledge path, чтобы бот меньше зависал при внешних тормозах retrieval/LLM. В `bot.ts` введены явные дедлайны на `qdrant.searchProducts` и `llm.generateAnswer`; при timeout LLM bot теперь строит deterministic fallback-ответ из уже найденных товаров вместо молчаливого зависания. После этого новый live Worker снова проверен synthetic webhook smoke.
+Изменены файлы: cloud-bot/src/bot.ts, docs/STATE.md, docs/state.json, docs/PROJECT_HISTORY.md
+Результат/доказательство: `npm run typecheck`; `npm run beta:gate` -> PASS; `npx wrangler deploy` -> Worker version `68dd6796-7c20-434e-8cee-28186eb3f0e8`; post-deploy synthetic smoke: `что взять у Belita для пигментации` -> `200` за `~7089ms`, `что для рук есть` -> `200` за `~5807ms`.
+Следующий шаг: перепроверить в живом Telegram hang-сценарии после anti-timeout слоя и затем продолжать beta-ready hardening уже по фактическим user traces.

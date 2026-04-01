@@ -6,6 +6,7 @@
 - Операционный статус: transient webhook incident `2026-04-01 00:02-00:06 +03:00` диагностирован; `health=200`, controlled `/webhook` smoke проходит, stuck Telegram updates вручную replayed, `pending_update_count` снова `0`.
 - Операционный статус: текущий live Worker уже синхронизирован с последним quality-sprint пакетом; после deploy подтвержден `health=200`, а GitHub workflow `Telegram Quality Gate` уже проходит на remote репозитории.
 - Операционный статус: отдельный hang/`1102` на cold-path запроса `что взять у Belita для пигментации` локализован в тяжелом full-catalog face-ranking без раннего candidate pruning; после сужения candidate pool новый live Worker снова проходит cold synthetic smoke (`пигментация ~3.2s`, `sensitive dry face ~6.3s`, оба `200`).
+- Операционный статус: поверх cold-path pruning добавлен еще и anti-timeout слой на retrieval/LLM path; при внешнем тормозе bot должен теперь быстрее деградировать в deterministic fallback, а не зависать до упора. Новый live Worker прошел synthetic smoke `пигментация ~7.1s` и `руки ~5.8s`, оба `200`.
 - Блокеры:
 - до production нужен отдельный legal review по РБ для парсинга, пользовательских данных и коммуникации на границе косметика / medical;
 - среди free-tier онлайн-стеков все еще нет сильной production-grade гарантии `24/7` без рисков квот, пауз и provider-specific ограничений;
@@ -19,6 +20,7 @@
 - Следующий шаг: подготовить следующий ranking-layer на `Qdrant hybrid + metadata filtering`, чтобы уменьшить зависимость от чисто ручных эвристик.
 - Следующий шаг: после следующего push активировать новый workflow `telegram-quality-gate.yml` в GitHub Actions и прогнать его уже на remote-репозитории.
 - Следующий шаг: отдельно перепроверить в живом Telegram именно `пигментацию` после cold-path фикса и убедиться, что пользовательский hang больше не воспроизводится.
+- Следующий шаг: отдельно перепроверить в живом Telegram именно `пигментацию` и любой LLM-heavy вопрос после нового anti-timeout слоя и убедиться, что пользовательский hang больше не воспроизводится.
 - Следующий шаг: отдельно проверить в Telegram, что duplicate replies после временных сбоев и параллельных retry больше не воспроизводятся после атомарного update reservation.
 - Артефакты:
   - `docs/PRD_BELITA_BOT.md`
@@ -87,6 +89,7 @@
     - GitHub repo secrets `QDRANT_URL` и `QDRANT_KEY` уже синхронизированы через `gh`, так что CI-сторона quality gate подготовлена; workflow останется запустить после push workflow-файла в remote.
     - remote GitHub workflow `Telegram Quality Gate` уже успешно проходит после push quality-sprint пакета и workflow refresh на актуальные action versions.
     - cold-path optimization shipped for non-vector Qdrant retrieval: before heavy face-ranking the bot now narrows candidate pool by scope/intent, which removed the intermittent Worker `1102` seen on pigmentation browse.
+    - anti-timeout guard shipped on retrieval/LLM path: if Qdrant or LLM stalls, the bot now should fall back faster instead of hanging silently.
     - cached replies теперь тоже обновляют recommendation session, поэтому `ссылки дай` и индексные follow-up вроде `сравни 1 и 3` больше не должны цепляться к старому compare-session;
     - если пользователь явно запросил сравнение двух позиций, а в текущем session only one index valid, бот теперь не деградирует молча в разбор одного товара.
     - recommendation memory split shipped: `catalog`, `compare` и `answer` session slots теперь живут раздельно и выбираются по типу follow-up.
@@ -112,3 +115,4 @@
 - Обновлено: `2026-04-01 01:47`
 - Обновлено: `2026-04-01 02:05`
 - Обновлено: `2026-04-01 02:21`
+- Обновлено: `2026-04-01 12:27`

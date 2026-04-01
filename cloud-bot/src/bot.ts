@@ -90,6 +90,8 @@ const NO_LABEL = "Нет";
 const FEEDBACK_HELPFUL_LABEL = "Подошло";
 const FEEDBACK_NOT_RELEVANT_LABEL = "Не по теме";
 const FEEDBACK_MORE_LABEL = "Еще варианты";
+const RETRIEVAL_TIMEOUT_MS = 8000;
+const LLM_TIMEOUT_MS = 12000;
 const FEEDBACK_HELPFUL = "feedback:helpful";
 const FEEDBACK_NOT_RELEVANT = "feedback:not_relevant";
 const FEEDBACK_MORE = "feedback:more";
@@ -2189,6 +2191,39 @@ function buildBabyCareNoMatchReply(): string {
   ].join("\n");
 }
 
+function createTimeoutError(label: string, timeoutMs: number): Error {
+  return new Error(`${label} timed out after ${timeoutMs}ms`);
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(createTimeoutError(label, timeoutMs));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+}
+
+function buildDeterministicFallbackReply(messageText: string, matches: ProductMatch[], requestedProductCount: number): string {
+  if (matches.length === 0) {
+    return KNOWLEDGE_REFRESH_MESSAGE;
+  }
+
+  const fallbackLimit = needsBroadCatalogScan(messageText)
+    ? Math.min(Math.max(requestedProductCount, 5), 8)
+    : Math.min(Math.max(requestedProductCount, 3), 4);
+
+  return buildCatalogWideReply(messageText, matches.slice(0, fallbackLimit));
+}
+
 function isShortAcknowledgement(text: string): boolean {
   return /^(да|даа+|нет|нету|неа|ага|угу|ок|окей|понял|поняла)$/i.test(text.trim());
 }
@@ -2759,7 +2794,7 @@ export function getBotRuntime(env: Env): BotRuntime {
       const searchInput = buildSearchInput(effectiveProfile, effectiveMessageText, retrievalLimit);
       let matches: ProductMatch[] = [];
       try {
-        matches = await qdrant.searchProducts(searchInput);
+        matches = await withTimeout(qdrant.searchProducts(searchInput), RETRIEVAL_TIMEOUT_MS, "qdrant.searchProducts");
         const refinementLimit = needsBroadCatalogScan(effectiveMessageText) ? retrievalLimit : requestedProductCount;
         matches = refineMatches(effectiveProfile, effectiveMessageText, matches, refinementLimit);
         matches = diversifyCatalogMatches(effectiveMessageText, matches, requestedProductCount);
@@ -2842,15 +2877,25 @@ export function getBotRuntime(env: Env): BotRuntime {
         return;
       }
 
-      const answer =
-        cachedAnswer ??
-        (await llmClient.generateAnswer({
-          userMessage: effectiveMessageText,
-          userProfile: hasMeaningfulProfile(effectiveProfile) ? effectiveProfile : null,
-          memorySummary,
-          productMatches: matches,
-          maxProducts: requestedProductCount
-        }));
+      let answer = cachedAnswer;
+      if (!answer) {
+        try {
+          answer = await withTimeout(
+            llmClient.generateAnswer({
+              userMessage: effectiveMessageText,
+              userProfile: hasMeaningfulProfile(effectiveProfile) ? effectiveProfile : null,
+              memorySummary,
+              productMatches: matches,
+              maxProducts: requestedProductCount
+            }),
+            LLM_TIMEOUT_MS,
+            "llm.generateAnswer"
+          );
+        } catch (error) {
+          console.error("LLM answer generation failed, using deterministic fallback", error);
+          answer = buildDeterministicFallbackReply(effectiveMessageText, matches, requestedProductCount);
+        }
+      }
 
       if (!cachedAnswer) {
         await cacheStore
